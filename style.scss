@@ -1,0 +1,943 @@
+// Cosmic Blocks
+// by Narcissa Wright
+
+$greenMsg: #61ce69;
+$redMsg: #ff525e;
+$dimMsg: #8474a4;
+$darkGrey: #0f0d12;
+$zebra1: #232127;
+$zebra2: #1f1d22;
+$sidebarBG: #1d1a20;
+$containerBG: #afa6c2;
+$borderColor: #4a4a4a;
+
+@mixin bgstyle {
+	background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center center;
+    //overflow: hidden;
+}
+
+@mixin noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none;   /* Chrome/Safari/Opera */
+  -khtml-user-select: none;    /* Konqueror */
+  -moz-user-select: none;      /* Firefox */
+  -ms-user-select: none;       /* Internet Explorer/Edge */
+  user-select: none;           /* Non-prefixed version, currently
+                                  not supported by any browser */
+}
+
+@mixin settingsText {
+	font-size:15px;
+	text-align:left;
+	margin-bottom:5px;
+	padding:0 2px;
+}
+@mixin blinkText { animation: blinkText 0.25s infinite alternate; }
+
+::-webkit-scrollbar {
+	background-color: $darkGrey;
+	width:3px;
+}
+::-webkit-scrollbar-thumb {
+	background-color: $dimMsg;
+}
+
+html {
+	height:100%;
+}
+
+body {
+	width: 100%;
+	height: 100%;
+	background:$borderColor;
+	margin: 0; padding: 0;
+	font-family: Roboto, 'Segoe UI', Calibri, sans-serif;
+	font-size: 15px;
+	background:#e4e4e4;
+	overflow:hidden;
+}
+
+h1 {
+	background: $darkGrey;
+	color: #eef;
+	padding: 5px;
+	margin: 0;
+	font-weight:bold;
+	font-size:20px;
+	border-bottom: 1px $borderColor solid;
+	text-align:center;
+}
+
+#container {
+	display: flex;
+	height:100vh;
+	background-color: $darkGrey;
+}
+
+#chatToggle {
+	z-index:4;
+	position:absolute;
+	background: black;
+	color: white;
+	border-right: 1px #4a4a4a solid;
+	&:hover {
+		background: $dimMsg;
+		cursor:pointer;
+	}
+}
+
+@mixin sidebarStyle {
+	width:222px;
+	min-width:222px;
+	background:$sidebarBG;
+}
+
+#chatPanel {
+	@include sidebarStyle;
+	border-right: 1px #383040 solid;
+	box-shadow: 1px 0px 5px 1px rgba(0, 0, 0, 0.2);
+	height:100vh;
+	position:relative;
+	
+	> #logContainer {
+		background:$zebra1;	
+		color: #ded9e8;
+		max-height: calc(100% - 61px);
+		overflow-y: scroll;
+	
+		> #log {
+			.logLine {
+				padding:0 6px;
+				&:nth-child(2n) {
+					background:$zebra2;
+				}
+				word-wrap: break-word;
+				a { color: #8888FF; }
+				a:hover { color: #CCCCFF;}
+				a:active { color:white;}
+			}
+			.logLine.special {
+				background:$sidebarBG;
+			}
+		}
+	}
+	
+	> #chat {
+		background:$zebra1;
+		width:100%;
+		box-sizing: border-box;
+		font-size:15px;
+		color: #ded9e8;
+		position:absolute;
+		bottom:0px;
+		
+		> #chatInput {
+			box-sizing: border-box;
+			width: 100%;
+			background:$darkGrey;
+			border: 0px;
+			color:white;
+			padding: 2px;
+			border:1px solid #1f1d22;
+			font-size: 15px;
+			
+			&:focus {
+				background-color:#000;
+				outline: none !important;
+				border:1px solid $dimMsg;
+			}
+		}
+	}
+}
+
+#leaderboard {
+	@include sidebarStyle;
+	border-left: 1px #383040 solid;
+	color: #ded9e8;
+	box-shadow: -1px 0px 5px 1px rgba(0, 0, 0, 0.2);
+	
+	> #rankingContainer {
+		max-height: calc(100% - 38px);
+		overflow-y: scroll;
+	}
+	
+	table {
+		width:100%;
+		border-collapse: collapse;
+	}
+	tr:nth-child(n+3) > td:nth-child(1) { color: #907ea3; }
+	tr:nth-child(1) > td:nth-child(1) { color: #f7e279; font-weight: bold; }
+	tr:nth-child(2) > td:nth-child(1) {	color: #bec7d2; font-weight: bold; }
+	tr:nth-child(3) > td:nth-child(1) {	color: #e09456; font-weight: bold; }
+	tr:nth-child(even) { background: $zebra1; }
+	tr:nth-child(odd) { background: $zebra2; }
+	td:nth-child(1) { padding-left: 5px; }
+	td:nth-child(2) { padding: 0 5px; }
+	td:nth-child(3) { text-align:right;	padding-right: 5px;}
+}
+
+.greenMsg { color: $greenMsg; }
+.dimMsg { color:$dimMsg; }
+.redMsg { color:$redMsg; }
+.coldweather { color: #b6e3ff; }
+.buttonStyle {
+	background:#e4e4e4;
+	font-weight:bold;
+	border:2px solid #bfb0de;
+	display:block;
+	color: #001ca8;
+	box-shadow: 2px 2px 5px 1px rgba(0, 0, 0, 0.2),
+				0px 2px 0px 0px rgba(128, 128, 128, 0.5);
+	padding:4px 10px;
+	border-radius:4px;
+	margin-bottom:5px;
+	
+	//text-decoration:underline;
+	&:hover {
+		cursor:pointer;
+		background: white;
+		color: #e984ff;
+		//text-decoration:underline;
+	}
+	&:active{
+		color:#2aaddd;
+	}
+}
+
+#toggleAudio {
+	padding:0;
+	width:45px;
+	height:28px;
+	@include bgstyle;
+	.audioOff {
+		display:none;
+	}
+}
+
+.blinkText {
+	@include blinkText;
+}
+
+#lobby {
+	color: #fff;
+	flex: 1;
+
+	.lobbyLabel {
+		text-align: center;
+		padding-bottom: 5px;
+	}
+	
+	#optionButtons {
+		float:left;
+		display:flex;
+		align-items: center;
+		margin-bottom:20px;
+		
+		> * {
+			display: inline-block;
+			margin-right:5px;
+			margin-bottom:0;
+		}
+		> a {
+			text-decoration: none;
+		}
+		
+	}
+
+	#playerStats {
+		float:right;
+		width:200px;
+		margin-bottom:20px;
+		padding-left:20px;
+		border-left: 1px $borderColor solid;
+		
+		#lobbyUserData {
+			color: #ded9e8;
+			list-style: none;
+			font-size:15px;
+			margin: 0;
+			padding:0;
+		}
+	}
+
+	
+	#gameTypes {
+		clear:both;
+		border-top: 1px $borderColor solid;
+		
+		> div {
+			box-sizing: border-box;
+			width: 50%;
+			padding:3px;
+		}
+		
+		#open {
+			/*.joinGameButton { @include blinkText; }*/
+			float:left;
+		}
+		
+		#inprogress {
+			float:right;
+			padding-left:5px;
+		}
+		
+		.lobbyGame {
+			/*background:#a69cbc;*/
+			background: $sidebarBG;
+			border-radius:5px;
+			padding:5px 10px;
+			.WhoVsWho {
+
+			}
+			.gameSettings {
+				color: $dimMsg;
+				float:right;
+				font-size:12px;
+			}
+			margin-bottom:5px;
+		}
+	}
+	
+	.lobbyButtons {
+		margin-top:5px;
+		span { display:inline-block; }
+	}
+	
+	.lobbyButton {
+		
+		// might not need these:
+		&.winner1 { background: #ffb154; }
+		&.winner2 { background: #84bfff; }
+		&.winner3 { background: #7dd96f; }
+	
+		@extend .buttonStyle;
+		margin-right:5px;
+	}
+}
+
+.roomChange {
+	padding: 5px 0;
+	margin: 3px 0;
+	text-align:center;
+	color: $dimMsg;
+	font-weight:bold;
+}
+
+.postGame {
+	padding: 5px 0;
+	margin: 3px 0;
+	text-align:center;
+	.result {
+		font-weight:bold;
+	}
+	.seriesScore {
+		> div {
+			width: 50%;
+			padding:5px;
+			box-sizing: border-box;
+			font-weight:bold;
+			> span {
+				background:$darkGrey;
+				border-radius:5px;
+				width:66%;
+				display:inline-block;
+				padding:5px;
+			}
+		}
+		> div:nth-child(0) {
+			float:left;
+		}
+		> div:nth-child(1) {
+			float:right;
+		}
+	}
+}
+
+#timer {
+	font-weight:normal;
+}
+
+.timeWarning {
+	animation: colorchange 10s infinite;
+}
+
+@keyframes colorchange
+    {
+      0%   { background: $darkGrey; }
+	  5%   { background: #140c10; }
+	  10%  { background: $darkGrey; }
+	  15%  { background: #1a0a0e; }
+	  20%  { background: $darkGrey; }
+	  25%  { background: #1f090d; }
+	  30%  { background: $darkGrey; }
+	  35%  { background: #24080b; }
+	  40%  { background: $darkGrey; }
+	  45%  { background: #2a0609; }
+	  50%  { background: $darkGrey; }
+	  55%  { background: #2f0507; }
+	  60%  { background: $darkGrey; }
+	  65%  { background: #340405; }
+	  70%  { background: $darkGrey; }
+	  75%  { background: #390304; }
+	  80%  { background: $darkGrey; }
+	  85%  { background: #3f0102; }
+	  90%  { background: $darkGrey; }
+	  95%  { background: #440000; }
+	  100% { background: $darkGrey; }
+    }
+
+#sidebar {
+	padding-top:5px;
+	//padding-bottom:6px;
+	
+	@include noselect;
+	background: $darkGrey;
+	position:relative;
+	z-index: 2;
+	border-bottom: 1px $borderColor solid;
+	
+	& > div {
+		text-align: center;
+		margin-left: 5px;
+		margin-right: 5px;
+		color: #ded9e8;
+		&:last-child {
+			//margin-bottom:0;
+		}
+		
+		&#forfeit {
+			color:#ee0000;
+		}
+		
+		&#timer {
+			margin-bottom:5px;
+		}
+		
+		&#offerDraw {
+			color:#1b7f18;
+			&.offered {
+				animation: blinkText 0.25s infinite alternate;
+			}
+		}
+	}
+	
+	& > #timeLimitContainer {
+		@include settingsText;
+		
+		& > #timeLimit {
+			color:#eeeeee;
+			font-weight:bold;
+			&.creatorHighlight:hover {
+				@include blinkText;
+				cursor:pointer;
+			}
+		}
+		
+		& > .plusMinusButtons {
+			float:right;
+			& > span {
+				cursor:pointer;
+				&.greenMsg:hover { color: $greenMsg + #2a2a2a; }
+				&.redMsg:hover { color: $redMsg + #333333; }
+			}
+			& > span:last-child {
+				margin-left:3px;
+			}
+		}
+	}
+	
+	& > #collisionContainer {
+		@include settingsText;
+		& > #collisionSetting {
+			color:#eeeeee;
+			font-weight:bold;
+			&.creatorHighlight:hover {
+				@include blinkText;
+				cursor:pointer;
+			}
+		}
+	}
+}
+
+.lobbyName {
+	font-weight:bold;
+	border-bottom: 1px $borderColor solid;
+	padding-bottom:5px;
+	margin-bottom: 5px;
+	font-size:20px;
+}
+.stat {
+	float:right;
+	font-weight:bold;
+}
+
+#roomTitle {
+	color:white;
+	text-align:center;
+	padding-bottom:5px;
+	& > span {
+		display: inline-block;
+		white-space: nowrap;
+		transform-origin: left;
+		font-weight:bold;
+	}
+}
+#titleWidth {
+	font-weight:bold;
+}
+
+#chooseColor {
+	display:flex;
+	flex-direction:row;
+	//margin-bottom:6px;
+	flex-wrap: wrap;
+	
+	& > span {
+		//box-sizing: border-box;
+		border: 1px #000 solid;
+		border-radius:4px;
+		flex: 1 0 20%; // only fits 4 cause of margin.
+		height: 25px;
+		margin:0 3px 6px 3px;
+		&:nth-child(4n+1) { margin-left:0; }
+		&:nth-child(4n+4) { margin-right:0; }
+		&:hover:not(.nohover) {
+			cursor:pointer;
+			// something cool here
+		}
+	}
+}
+
+.rowcolButtons {
+	float:right;
+	& > span { border-radius:4px; padding:0 4px; }
+	& > span:hover {
+		cursor:pointer;
+		background:#5a4880;
+	}
+}
+
+#flexcontainer {
+	margin: 0px auto;
+	display: flex;
+	flex-direction:column;
+	z-index:2;
+}
+
+#nameEntry {
+
+	padding-top:5px;
+
+	#ne {
+		color: #001ca8;
+		padding:3px 5px;
+		border:2px solid #bfb0de;
+		border-radius: 4px;
+		font-size:15px;
+		width:200px;
+	}
+
+	#ne:focus {
+		border-color:#333;
+	}
+
+	#sendName {
+		margin-left:10px;
+		color:white;
+		font-size:15px;
+		padding:3px 15px;
+		background:#9586b4;
+		border:2px solid #bfb0de;
+		cursor:pointer;
+		border-radius: 4px;
+		&:hover {
+			background:#8e6ad9;
+		}
+	}
+}
+
+#username {
+	position:absolute;
+	@include noselect;
+	color: #9384b3;
+	cursor:default;
+	opacity:0.5;
+	font-weight:bold;
+	font-size:30px;
+	right: 15px;
+	top: 10px;
+	z-index:1;
+}
+
+#bottomOptions {
+	width:222px;
+	position: absolute;
+	z-index: 1;
+	bottom: 0px;
+	background: $darkGrey;
+	border-top: 1px $borderColor solid;
+	font-size:15px;
+	> div, > a {
+		text-align: center;
+		margin:5px;
+		text-decoration:none;
+		> span {
+			font-weight:bold;
+		}
+	}
+}
+
+
+
+/*
+.sidebarStyle {
+	color: #001ca8;
+	line-height:55px;
+	display:block;
+	height: 58px;
+	padding-left:17px;
+	margin-bottom:2px;
+}
+
+#customoptions {
+	margin-top:20px;
+	@include noselect;
+	text-align:center;
+	div {
+		//font-size:30px;
+		//line-height:30px;
+		font-weight:bold;
+		vertical-align:center;
+		background:#aaa;
+		display:inline-block;
+		width: 24px;
+		box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4), 2px 2px 5px 1px rgba(0, 0, 0, 0.2);
+		&:hover {
+			background: #ccc;
+			cursor: pointer;
+		}
+		//border: 1px #222 solid;
+	}
+	#moreRows, #moreCols {
+		color: green;
+	}
+	#lessRows, #lessCols {
+		color: red;
+	}
+	#startGame {
+		color: #BA90F3;
+		width: auto;
+	}
+}
+*/
+
+#board {
+	box-shadow: 2px 2px 5px 1px rgba(0, 0, 0, 0.2);
+	/*          0px 2px 0px 0px rgba(128, 128, 128, 0.5);
+	border:2px #675c56 solid;			*/
+	
+	background: #675c56;
+	margin: 0;
+	border-radius: 2px;
+	
+	.board_row {
+		height:50px;
+		white-space: nowrap;
+		
+		.block {
+			display: block;
+			border-radius: 1px;
+			float:left;
+			position: relative;
+			width:50px; height: 50px;
+			//box-shadow: inset 0 0 0 1px rgba(69,62,84,0.125);
+			background-size: contain;
+			background-position: center center;
+			
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			
+			&.disabled {
+				opacity:0.85;
+				cursor:default;
+			}
+			&.nohover {
+				cursor:default;
+			}
+			&.newMove {
+				//background:white !important;
+			}
+		}
+	}
+}
+
+
+
+#headBoardContainer {
+	margin: 0 auto;
+}
+
+#gameHead {
+	@extend h1;
+	background-color: transparent;
+	display:flex;
+	div {
+		flex: 1;
+	}
+}
+
+svg {
+	width:100%;
+	height:100%;
+	display: block;
+	pointer-events:none;
+}
+
+.block.ice svg {
+	.border {
+		fill: #58B1DD;
+	}
+	.border2 {
+		stroke: #9AD1ED;
+	}
+}
+
+.block .mineMetal {
+	opacity:0.35;
+}
+.mineLights {
+	fill: #48FF55;
+	animation: mineGlow 0.33s infinite alternate ease-in-out;
+}
+
+@keyframes mineGlow {
+	0% { opacity: 0.7; } 
+	100% { opacity: 1; }
+}
+
+.duration {
+	color: #888;
+	font-weight:bold;
+	font-size:150%;
+}
+
+.block svg {
+	.border {
+		opacity: 1;
+	}
+	.border2 {
+		fill-opacity:0;
+		stroke-opacity:1;
+	}
+	.outline {
+		fill: #ffffff;
+		fill-opacity: 0.5;
+	}
+	/*.circleoutline {
+		stroke: #ffffff;
+		stroke-opacity: 0.5;
+		fill-opacity: 0;
+	}*/
+	.shape {
+		fill: #000000;
+	}
+	.oShape {
+		fill-opacity: 0;
+		stroke-opacity:1;
+		stroke: #000000;
+	}
+	.jewel {
+		opacity: 0.2;
+	}
+}
+
+.menu_block svg {
+	.outline, .circleoutline {
+		opacity: 0;
+	}
+}
+
+#menuContainer {
+}
+
+#menuRightContainer {
+	margin-top:10px;
+}
+
+#gameButtons {
+	float:right;
+}
+
+#bottomInfo {
+	float:right;
+	text-align:right;
+	font-size:11px;
+	color: $dimMsg;
+	margin-right:20px;
+	max-width:240px;
+}
+
+#menu {
+	display:inline-block;
+	/*
+	padding: 5px 0 0 5px;
+	background: $sidebarBG;
+	border-bottom-right-radius: 3px;
+	border-bottom-left-radius: 3px;
+	box-shadow: 2px 2px 5px 1px rgba(0, 0, 0, 0.2);
+	*/
+	
+	.menu_row {
+		line-height:0px;
+		//margin-left:5px;
+		
+		.menu_block {
+			background:#e4e4e4;
+			display:inline-block;
+			width:60px;
+			height:60px;
+			//border: 1px #c15cbc solid;
+			box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4), 2px 2px 5px 1px rgba(0, 0, 0, 0.2);
+			position: relative;
+			padding:0;
+			margin:5px 10px 5px 0;
+			@include bgstyle;
+			z-index:1;
+			
+			& > .ammo {
+				position:absolute;
+				display:inline-block;
+				top:-3px;
+				right:-3px;
+				font-size:15px;
+				line-height:15px;
+				font-weight:bold;
+				background:$dimMsg;
+				color:#fff;
+				border-radius:4px;
+				padding:1px 3px;
+				z-index:2;
+			}
+			
+			&:hover:not(.nohover) {
+				background: #d99fd6;
+				cursor:pointer;
+			}
+			
+			&.disabled {
+				opacity: 0.5;
+				& > svg {
+					opacity:0.5;
+				}
+				
+				&:hover {
+					background:#e4e4e4;
+					cursor: default;
+				}
+			}
+			
+			&.noammo {
+				opacity: 0.1;
+			}
+			
+			&.active {
+				border: 1px #4cd7e3 solid;
+			}
+		}
+	}
+}
+
+#blockListEditor {
+	margin: auto auto;
+}
+.blockInfoContainer {
+	display:inline-block;
+	margin:10px;
+	text-align:center;
+	font-size:15px;
+	font-weight:bold;
+	background:#5a497e;
+	@include noselect;
+	
+	> span:nth-of-type(1) {
+		float:left;
+		margin-left:3px;
+		color: $redMsg;
+		&.disabled {
+			color: #777;
+			&:hover {
+				cursor: default;
+			}
+		}
+		&:hover {
+			color: $redMsg + #333;
+			cursor: pointer;
+		}
+	}
+	
+	> span:nth-of-type(2) {
+		color: white;
+	}
+	
+	> span:nth-of-type(3) {
+		float:right;
+		margin-right:3px;
+		color: $greenMsg;
+		&.disabled {
+			color: #777;
+			&:hover {
+				cursor: default;
+			}
+		}
+		&:hover {
+			color: $greenMsg + #333;
+			cursor: pointer;
+		}
+	}
+}
+.blockInList {
+	background:#e4e4e4;
+	display:inline-block;
+	width:80px;
+	height:80px;
+	//border: 1px #c15cbc solid;
+	box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4), 2px 2px 5px 1px rgba(0, 0, 0, 0.2);
+	position: relative;
+	padding:0;
+	margin:0px;
+	@include bgstyle;
+	z-index:1;
+	float:left;
+	
+	&.disabled {
+		background: #777;
+		& > svg { opacity: 0.3 }
+		&:hover {
+			background: #c15cbc;
+			svg { opacity: 0.5 }
+		}
+	}
+	 &:hover {
+		background: #d99fd6;
+		cursor:pointer;
+	 }
+}
+
+@keyframes blinkText {
+	0% {
+		opacity:1;
+	}
+	40% {
+		opacity:0.95;
+	}
+	60% {
+		opacity:0.6;
+	}
+	100% {
+		opacity:0.55;
+	}
+}
