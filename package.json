@@ -16,7 +16,8 @@
     "express": "4.16.3",
     "hsl-to-hex": "1.0.0",
     "cookie-parser": "1.4.3",
-    "socket.io": "2.0.4"
+    "socket.io": "2.0.4",
+    "orm": "4.0.2"
   },
   "repository": {
     "type": "git",
