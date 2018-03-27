@@ -1,0 +1,31 @@
+{
+  "name": "cosmicblocks",
+  "version": "1.0.0",
+  "description": "Narcissa Wright's game.",
+  "engines": {
+    "node": "8.9.1"
+  },
+  "main": "client.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "node-sass": "4.8.3",
+    "node-minify": "2.4.2",
+    "express": "4.16.3",
+    "hsl-to-hex": "1.0.0",
+    "cookie-parser": "1.4.3",
+    "socket.io": "2.0.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/therewillbefun/cosmicblocks.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/therewillbefun/cosmicblocks/issues"
+  },
+  "homepage": "https://github.com/therewillbefun/cosmicblocks#readme"
+}
