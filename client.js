@@ -17,6 +17,7 @@ var you; // socket id.
 var yourName; //displayName.
 var opponents = []; // who u playin against
 var socket; // online multiplayer!
+var isGhost; // is this open in a second tab.
 var inGame = false; // are you in a game or in the lobby?
 var showWinState = false; // should the winState be shown?
 var player = false; // are you a player
@@ -1343,7 +1344,7 @@ function renderLeaderboard(leaderData) {
 	}
 }
 
-function renderGames(lobbyData, isGhost) {
+function renderGames(lobbyData) {
 
 	// RENDER GAMES!
 	for (var i = 0; i < lobbyData.length; i++) {
@@ -1546,8 +1547,6 @@ function onlinePlay() {  // hooray! hooray! for online play!
 		$("#lobby").remove();
 		$("#leaderboard").remove();
 		$("#headBoardContainer").remove();
-		var isGhost = lobbyUserData.ghost;
-		
 		
 		if (isGhost) {
 			
@@ -1559,7 +1558,6 @@ function onlinePlay() {  // hooray! hooray! for online play!
 							<a id="howToPlay" class="buttonStyle" href="https://docs.google.com/document/d/1c_rIYxdl2udNHXPFnHj5ELoYPjtej4hDjy7nCHnceG0/edit" target="_blank">How to Play</a>
 							<div id="toggleAudio" class="buttonStyle">`+ audioButtonSVG() +`</div>
 						</div>
-						<div id="playerStats"></div>
 						<div id="gameTypes">
 							<div id="open"></div>
 							<div id="inprogress"></div>
@@ -1614,13 +1612,10 @@ function onlinePlay() {  // hooray! hooray! for online play!
 		renderLeaderboard(leaderData);
 		
 		// RENDER GAMES!
-		renderGames(lobbyData, isGhost);
+		renderGames(lobbyData);
 		
 		// RENDER PLAYER STATS (not a separate function because it is only called within renderLobby();
-		if (lobbyUserData.ghost) {
-			var appendString = '<p>ghost mode...</p>';
-			$("#playerStats").append(appendString);
-		} else {
+		if (!isGhost) {
 			if (lobbyUserData.gamesPlayed !== 0) {
 				var appendString = '<ul id="lobbyUserData">';
 				appendString += '<li>Games Played<span class="stat">' + lobbyUserData.gamesPlayed + '</span></li>';
@@ -2375,9 +2370,10 @@ function onlinePlay() {  // hooray! hooray! for online play!
 	socket.on('log', function(msg, special) {
 		log(msg, special); // special messages don't have padding built in so I can alter BGcolor without it looking bad lol
 	});
-	socket.on('store id', function(id, displayName) {
+	socket.on('store id', function(id, displayName, ghost) {
 		you = id;
 		yourName = displayName;
+		isGhost = ghost;
 	});
 	socket.on('connect audio', function() {
 		if (audioEnabled) {
