@@ -290,7 +290,6 @@ var handleDBResult = function(err, User, db) {
 			}
 		}
 		if (duplicate) {
-			socket.emit('log', '<span class="redMsg">already active in another tab, entering ghost mode.</span>');
 			userData[socket.id] = {
 				username: socket.request.user.displayName + ' (g)',
 				room: false,
@@ -330,7 +329,7 @@ var handleDBResult = function(err, User, db) {
 				ghost: false
 			};
 		}
-		socket.emit('store id', socket.id, userData[socket.id].username);
+		socket.emit('store id', socket.id, userData[socket.id].username, userData[socket.id].ghost);
 		io.emit('log', '<span style="color: '+ userData[socket.id].color +'"><b>' + userData[socket.id].username + '</b> connected.</span><span style="float:right;" class="greenMsg">' + Object.keys(userData).length + '</span>');
 		if (saveData) {
 			socket.emit('log', '<b>Welcome to Cosmic Blocks!</b>');
@@ -2880,25 +2879,16 @@ var handleDBResult = function(err, User, db) {
 		var lobbyD = lobbyData();
 		var lobbyUserData = false;
 		if (typeof socket !== 'undefined') {
-			if (userData[socket.id].ghost) {
-				lobbyUserData = {
-					ghost : true,
-					username : userData[socket.id].username,
-					color : userData[socket.id].color
-				}
-			} else {
-				lobbyUserData = {
-					ghost : false,
-					username : userData[socket.id].username,
-					color : userData[socket.id].color,
-					gamesPlayed: userData[socket.id].gamesPlayed,
-					timePlayed: userData[socket.id].timePlayed,
-					wins : userData[socket.id].wins,
-					draws : userData[socket.id].draws,
-					losses : userData[socket.id].losses,
-					elo : userData[socket.id].elo,
-					remainingRerolls : userData[socket.id].remainingRerolls
-				}
+			lobbyUserData = {
+				username : userData[socket.id].username,
+				color : userData[socket.id].color,
+				gamesPlayed: userData[socket.id].gamesPlayed,
+				timePlayed: userData[socket.id].timePlayed,
+				wins : userData[socket.id].wins,
+				draws : userData[socket.id].draws,
+				losses : userData[socket.id].losses,
+				elo : userData[socket.id].elo,
+				remainingRerolls : userData[socket.id].remainingRerolls
 			}
 		}
 		leaderData(handleResult); // gets data from DB
@@ -2916,6 +2906,7 @@ var handleDBResult = function(err, User, db) {
 				return;
 			}
 			// no error
+			
 			io.to("lobby").emit('update lobby', lobbyD, leaderD);
 		}
 
