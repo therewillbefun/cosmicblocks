@@ -466,7 +466,7 @@ var handleDBResult = function(err, User, db) {
 		}
 		socket.on('practice mode', function() {
 			if (userData[socket.id].room !== 'lobby') {
-				socket.emit('<span class="redMsg">cannot create practice room unless in lobby.</span>');
+				socket.emit('log', '<span class="redMsg">cannot create practice room unless in lobby.</span>');
 			} else {
 				var gameID = 'game-' + crypto.randomBytes(8).toString('hex'); // randomly generate ID
 				gameData[gameID] = {
@@ -506,10 +506,10 @@ var handleDBResult = function(err, User, db) {
 		});
 		socket.on('new game', function(special) {
 			if (userData[socket.id].room !== 'lobby') {
-				socket.emit('<span class="redMsg">cannot create new game unless in lobby.</span>');
+				socket.emit('log', '<span class="redMsg">cannot create new game unless in lobby.</span>');
 			} else {
 				if (userData[socket.id].ghost) {
-					socket.emit('<span class="redMsg">ghost cannot create game.</span>');
+					socket.emit('log', '<span class="redMsg">ghost cannot create game.</span>');
 				} else {
 					var gameID = 'game-' + crypto.randomBytes(8).toString('hex'); // randomly generate ID
 					gameData[gameID] = {
@@ -540,7 +540,24 @@ var handleDBResult = function(err, User, db) {
 						}
 					};
 					
-					exMode(gameID); // now with mines and reclaim!
+					// the way I set up games right now, has the client pass in a special word "random" to determine what kind of game it should be (in this case, the only two options are standard and random.
+					
+					//standard (or exMode) here, sets up a board with no real terrain, in a specific configuration.
+					// it includes 3 mines, 1 reclaim, a standardized sort of block loadout for each player.
+					
+					//random mode gives randomized terrain, start positions, and blocklist, within some limitations.
+					//rematches in random mode will not shuffle the board, so a new game has to be created for a new board.
+					
+					// the issue is that...
+					// there should be only one new game button
+					// which leads to a screen DIFFERENT from how it is now,
+					// a screen with options and settings, a game setup page
+					
+					if (special !== 'random') {
+						exMode(gameID); // now with mines and reclaim!
+					} else {
+						randomMode(gameID); // random board;
+					}
 					
 					io.emit('connect audio'); // I used to use this for connect but I'm using it for new game now.
 					io.emit('log', '<span class="dimMsg">' + userData[socket.id].username + ' created a game.</span>');
@@ -715,7 +732,7 @@ var handleDBResult = function(err, User, db) {
 		function setPlayer(gameID, playerID) {
 			gameData[gameID].players[playerID] = {
 				username: userData[socket.id].username,
-				elo: Math.round(userData[socket.id].elo),
+				displayElo: returnDisplayElo(playerID),
 				winner: false, 
 				winPath: [], 
 				hasMoved: false,
@@ -736,7 +753,10 @@ var handleDBResult = function(err, User, db) {
 			
 			// assign player color to game
 			gameData[gameID].players[playerID].color = userData[playerID].color;
-					
+			
+			
+			// this color brightness fix sucks too bad to use, need to do something different. disabling it for now.
+			/*
 			// it's time to figure out if player colors are too close to eachother...
 			var playerColors = [];
 			var playerIDs = [];
@@ -754,6 +774,7 @@ var handleDBResult = function(err, User, db) {
 					//io.to(gameID).emit('log', '<span class="dimMsg">player colors nearly match; brightened ' + userData[playerID].username + '\'s color.</span>');
 				}
 			}
+			*/
 			
 			var bases = [];
 			for (var i = 0; i < gameData[gameID].board.length; i++) {
@@ -762,9 +783,19 @@ var handleDBResult = function(err, User, db) {
 				}
 			}
 			if (gameData[gameID].creator == socket.id) {
-				var pos = bases[0];
+				// find the base with a left-most x-position and use that for creator slot
+				if (gameData[gameID].board[bases[0]].x < gameData[gameID].board[bases[1]].x) {
+					var pos = bases[0];
+				} else {
+					var pos = bases[1];
+				}
 			} else {
-				var pos = bases[1];
+				// find the base with a right-most position and use that for joining player
+				if (gameData[gameID].board[bases[0]].x < gameData[gameID].board[bases[1]].x) {
+					var pos = bases[1];
+				} else {
+					var pos = bases[0];
+				}
 			}
 			var x = gameData[gameID].board[pos].x + 1;
 			var y = gameData[gameID].board[pos].y + 1;
@@ -1198,7 +1229,7 @@ var handleDBResult = function(err, User, db) {
 						gameData[gameID].ratingsCalculated = false;
 						
 						var over1000 = 0;
-						var creatorElo = userData[gameData[gameID].creator].elo;
+						var creatorElo = returnDisplayElo(gameData[gameID].creator);
 						var playerElo = creatorElo; // initially set this to creatorElo but change it if it's found to be different.
 						for (player in gameData[gameID].players) {
 							gameData[gameID].players[player].blockList = JSON.parse(JSON.stringify(gameData[gameID].blockList));
@@ -1210,12 +1241,17 @@ var handleDBResult = function(err, User, db) {
 							gameData[gameID].players[player].rematchOffered = false;
 							gameData[gameID].players[player].disconnected = false;
 							gameData[gameID].players[player].forfeit = false;
+							if (userData[player].elo !== creatorElo) { 
+								// if it's different, set it to the other player's elo.
+								playerElo = returnDisplayElo(player);
+							}
+							
+							
+							/*
 							if (userData[player].elo > 1000) {
 								over1000++;
 							}
-							if (userData[player].elo !== creatorElo) { // if it's different, set it to the other player's elo.
-								playerElo = userData[player].elo; 
-							}
+							*/
 						}
 						gameData[gameID].totalGames++;
 						
@@ -1256,7 +1292,7 @@ var handleDBResult = function(err, User, db) {
 						}
 						*/
 						
-						io.to(gameID).emit('setup rematch', gameData[gameID].blockList, Math.round(creatorElo), Math.round(playerElo));
+						io.to(gameID).emit('setup rematch', gameData[gameID].blockList, creatorElo, playerElo);
 						io.to(gameID).emit('log', '<span class="dimMsg">Rematch initiated</span>');
 						if (iceBoard) {
 							io.to(gameID).emit('log', '<span class="coldWeather">Cold weather!</span>');
@@ -1575,85 +1611,20 @@ var handleDBResult = function(err, User, db) {
 	
 	function randomMode(gameID) {
 		gameData[gameID].gameType = 'random';
-		do {
-			// do a bunch of randomization stuff.
-			var minRows = 7;
-			var maxRows = 18;
-			var minCols = 7;
-			var maxCols = 24;
-			
-			// randomize the number of rows and columns, between a min/max constant.
-			gameData[gameID].cols = (Math.floor(Math.random() * (maxCols - minCols + 1)) + minCols);
-			gameData[gameID].rows = (Math.floor(Math.random() * (maxRows - minRows + 1)) + minRows);
-			
-			// this flips it so it's always horizontally laid out.
-			if (gameData[gameID].rows > gameData[gameID].cols) {
-				var tempVal = gameData[gameID].rows;
-				gameData[gameID].rows = gameData[gameID].cols;
-				gameData[gameID].cols = tempVal;
-			}
-
-			// this function figures out a nice spacing for the player start position
-			// it accounts for if the board is rly skinny or w/e
-			// it might not be relevant rn because my min widths aren't too small??
-			// lol not even sure if this is relevant.
-			function getRandomStartPos(boardLength) {
-				var z = 1;
-				if (boardLength == 3) {
-					return z;
-				} else if (boardLength == 4) {
-					z += Math.floor(Math.random() * 2);
-					return z;
-				} else {
-					z += Math.floor(Math.random() * 3);
-					return z;
-				}
-			}
-			
-			// this is to set a starting position for the players
-			// in opposite corners (kinda)
-			var quadrant = (Math.floor(Math.random() * 4));
-			
-			// this is shit because it doesn't account for 4 player games.
-			// it also doesn't allow me to find this data when only 1 player is connected like wtf?
-			// i think maybe base position shouldn't be part of players...??
-			
-			/*
-			for (id in gameData[gameID].players) {
-				var p1x = gameData[gameID].players[id].baseX;
-				var p1y = gameData[gameID].players[id].baseY;
-				var p2x = gameData[gameID].players[id].baseX;
-				var p2y = gameData[gameID].players[id].baseY;
-			}
-			*/
-			
-			var p1x, p1y, p2x, p2y;
-			
-			if (quadrant == 0) {
-				p1x = 1 + getRandomStartPos(gameData[gameID].cols);
-				p1y = 1 + getRandomStartPos(gameData[gameID].rows);
-				p2x = gameData[gameID].cols - getRandomStartPos(gameData[gameID].cols);
-				p2y = gameData[gameID].rows - getRandomStartPos(gameData[gameID].rows);
-			} else if (quadrant == 1) {
-				p1x = gameData[gameID].cols - getRandomStartPos(gameData[gameID].cols);
-				p1y = 1 + getRandomStartPos(gameData[gameID].rows);
-				p2x = 1 + getRandomStartPos(gameData[gameID].cols);
-				p2y = gameData[gameID].rows - getRandomStartPos(gameData[gameID].rows);
-			} else if (quadrant == 2) {
-				p1x = gameData[gameID].cols - getRandomStartPos(gameData[gameID].cols);
-				p1y = gameData[gameID].rows - getRandomStartPos(gameData[gameID].rows);
-				p2x = 1 + getRandomStartPos(gameData[gameID].cols);
-				p2y = 1 + getRandomStartPos(gameData[gameID].rows);
-			} else if (quadrant == 3 ) {
-				p1x = 1 + getRandomStartPos(gameData[gameID].cols);
-				p1y = gameData[gameID].rows - getRandomStartPos(gameData[gameID].rows);
-				p2x = gameData[gameID].cols - getRandomStartPos(gameData[gameID].cols);
-				p2y = 1 + getRandomStartPos(gameData[gameID].rows);
-			}
-		
-		// give some minimum space between the players.
-		} while ( (Math.abs(p1x - p2x)) + (Math.abs(p1y - p2y)) < 7);
-
+		var quadrant = (Math.floor(Math.random() * 2));
+		var p1x, p1y, p2x, p2y;
+		function getRandomStartPos() {
+			return (2 + (Math.floor(Math.random() * 3)));
+		}
+		p1x = 1 + getRandomStartPos();
+		p2x = gameData[gameID].cols - getRandomStartPos();
+		if (quadrant == 0) {
+			p1y = 1 + getRandomStartPos();
+			p2y = gameData[gameID].rows - getRandomStartPos();
+		} else if (quadrant == 1) {
+			p1y = gameData[gameID].rows - getRandomStartPos();
+			p2y = 1 + getRandomStartPos();
+		}
 		initializeBoard(gameID,gameData[gameID].rows,gameData[gameID].cols);
 
 		function randomTerrain() {
@@ -1666,7 +1637,7 @@ var handleDBResult = function(err, User, db) {
 				var random = Math.round(Math.random());
 				if (random) {
 					// ~25% chance for an arrow block
-					random = Math.ceil(Math.random() * 9)
+					random = Math.ceil(Math.random() * 13);
 					if (random == 5) {
 						// unless it's a 5. then it's a jump block
 						random = Math.round(Math.random());
@@ -1677,7 +1648,17 @@ var handleDBResult = function(err, User, db) {
 						}
 					} else {
 						// give a random arrow block.
-						return ('arrow' + random)
+						if (random == 10) {
+							return 'hbar';
+						} else if (random == 11) {
+							return 'vbar';
+						} else if (random == 12) {
+							return 'tlbr';
+						} else if (random == 13) {
+							return 'bltr';
+						} else {
+							return ('arrow' + random)
+						}
 					}
 				} else {
 					// it's not an arrow or ice. so give a plus or a cross.
@@ -1725,92 +1706,46 @@ var handleDBResult = function(err, User, db) {
 		updateBlock(gameID, p2x + 1, p2y, "blank");
 		updateBlock(gameID, p2x + 1, p2y + 1, "blank");
 		
-		var rand1 = rand(1,10);
-		var rand2 = rand(1,10);
-		var rand3 = rand(1,10);
-		var rand4 = rand(1,10);
-		
-		function randBool() {
-			if (rand(1,2) === 1) { return true; } else { return false; }
-		}
+		var rand1 = rand(1,3);
+		var rand2 = rand(1,3);
+		var rand3 = rand(1,3);
+		var rand4 = rand(1,3);
 		
 		gameData[gameID].blockList = {
-			plus: {	ammo: false },
-			cross: { ammo: false },
+			plus: {	ammo: 'inf' },
+			cross: { ammo: 'inf' },
 			arrow4: { ammo: rand1 },
 			arrow6: { ammo: rand1 },
 			arrow7: { ammo: rand2 },
 			arrow9: { ammo: rand4 },
 			
-			oplus: { ammo: rand(1,10) },
-			ocross: { ammo: rand(1,10) },
+			oplus: { ammo: rand(1,3) },
+			ocross: { ammo: rand(1,3) },
 			arrow8: { ammo: rand3 },
 			arrow2: { ammo: rand3 },
 			arrow1: { ammo: rand4 },
 			arrow3: { ammo: rand2 }
 		};
 		
-		var specialBlocks = ['star', 'knight', 'circle', 'ice', 'hbar', 'vbar', 'tlbr', 'bltr'];
-		
-		for (var i = 0; i < specialBlocks.length; i++) {
-			if (randBool()) {
-				if (randBool()) {
-					gameData[gameID].blockList[specialBlocks[i]] = { ammo: false }
-				} else {
-					gameData[gameID].blockList[specialBlocks[i]] = { ammo: rand(1,5) }
-				}
-			}	
+		if (rand(1,2) == 2) { 
+			gameData[gameID].blockList['reclaim'] = { ammo: (rand(1,2)) }
+		}
+		gameData[gameID].blockList['circle'] = { ammo: (rand(1,3)) }
+		if (rand(1,4) !== 4) { 
+			gameData[gameID].blockList['mine'] = { ammo: (rand(1,5)) }
+		}
+		if (rand(1,3) !== 2) { 
+			gameData[gameID].blockList['star'] = { ammo: (rand(1,2)) }
+		}
+		if (rand(1,4) == 4) { 
+			gameData[gameID].blockList['knight'] = { ammo: 1 }
 		}
 		
 		gameData[gameID].collisionMode = { 
-			permanence: 3
+			permanence: 5
 		};
-		
-		/*
-		if (Math.random() >= 0.5) {
-			gameData[gameID].blockList['star'] = { ammo: false };
-		}
-		
-		gameData[gameID].blockList = {
-			plus: { ammo: false }
-			cross: { ammo: false }
-		};
-		
-		gameData[gameID].blockList['star'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['plus'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['cross'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['hbar'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['vbar'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['tlbr'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['bltr'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow1'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow2'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow3'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow4'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow6'].active = gameData[gameID].blockList['arrow4'].active;
-		gameData[gameID].blockList['arrow7'].active = gameData[gameID].blockList['arrow3'].active;
-		gameData[gameID].blockList['arrow8'].active = gameData[gameID].blockList['arrow2'].active;
-		gameData[gameID].blockList['arrow9'].active = gameData[gameID].blockList['arrow1'].active;
-		
-		gameData[gameID].blockList['ostar'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['oplus'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['ocross'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['ohbar'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['ovbar'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['otlbr'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['obltr'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow11'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow22'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow33'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow44'].active = Math.random() >= 0.5;
-		gameData[gameID].blockList['arrow66'].active = gameData[gameID].blockList['arrow44'].active;
-		gameData[gameID].blockList['arrow77'].active = gameData[gameID].blockList['arrow33'].active;
-		gameData[gameID].blockList['arrow88'].active = gameData[gameID].blockList['arrow22'].active;
-		gameData[gameID].blockList['arrow99'].active = gameData[gameID].blockList['arrow11'].active;
-		*/
-		
-		// randomize the time limit in a 10sec interval. maybe 5sec is better. or 1s.
-		gameData[gameID].timeLimit = (Math.ceil(Math.random() * 10)) * 10;
+		gameData[gameID].timeLimit = 40;
+		gameData[gameID].timerValue = 40;
 	}
 
 	function initializeBoard(gameID, rows, cols) {
@@ -2353,7 +2288,7 @@ var handleDBResult = function(err, User, db) {
 			if (gameData[gameID].moveCount > 1) {
 				if (gameData[gameID].ratingsCalculated == false) {
 					for (playerID in gameData[gameID].players) {
-						var twitterid = userData[playerID].twitterid;
+						//var twitterid = userData[playerID].twitterid;
 						if (drawGame == false) {
 							if (playerID === winners[0]) {
 								gameData[gameID].players[playerID].wins++;
@@ -2382,6 +2317,14 @@ var handleDBResult = function(err, User, db) {
 					
 					// Elo
 					var kFactor = 20;
+					if (gameData[gameID].gameType == 'random') {
+						kFactor = 7.5;
+					}
+					
+					if (gameData[gameID].moveCount < 8) {
+						kFactor *= (gameData[gameID].moveCount / 8);
+					}
+					
 					var winner, loser;
 					if (gameData[gameID].players[playerIDs[0]].winner) {
 						winner = playerIDs[0];
@@ -2411,7 +2354,6 @@ var handleDBResult = function(err, User, db) {
 					var p1Score = gameData[gameID].players[playerIDs[0]].wins + (gameData[gameID].players[playerIDs[0]].draws / 2);
 					var p2Score = gameData[gameID].players[playerIDs[1]].wins + (gameData[gameID].players[playerIDs[1]].draws / 2);
 					
-					// chat message, post game:
 					var postGameMsg = '<div class="postGame">';
 					if (drawGame) {
 						postGameMsg += '<span class="result">Draw Game!</span>';
@@ -2419,75 +2361,87 @@ var handleDBResult = function(err, User, db) {
 						postGameMsg += '<span class="result" style="color: ' + userData[winners[0]].color + '">' + userData[winners[0]].username + ' Wins!</span>';
 					}
 					postGameMsg += '<div class="seriesScore"><div style="color: '+ userData[playerIDs[1]].color + '"><span>' + p2Score + '</span></div><div style="color: '+ userData[playerIDs[0]].color + '"><span>' + p1Score + '</span></div></div>';
-					for (var j = 0; j <= 1; j++) {
-						var prior = Math.round(userData[playerIDs[j]].oldElo);
-						var post = Math.round(userData[playerIDs[j]].elo);
-						var change = post - prior;
-						postGameMsg += '<div><span style="color:'+ gameData[gameID].players[playerIDs[j]].color +'; font-weight:bold;">'+ userData[playerIDs[j]].username +'</span><span class="dimMsg">: ';
-						postGameMsg += prior + '&rarr;</span>' + post +' </span>';
-						if (change > 0) {
-							postGameMsg += '<span class="greenMsg">(+' + change + ')</span>';
-						} else if (change == 0) {
-							postGameMsg += '<span>(&plusmn;0)</span>';
-						} else {
-							postGameMsg += '<span class="redMsg">(&minus;' + Math.abs(change) + ')</span>';
+					for (var j = 0; j <= 1; j++) {			
+						if (userData[playerIDs[j]].gamesPlayed >= 10) {
+							// if user has not played at least 10 games, do not show rating change.
+							var prior = Math.round(userData[playerIDs[j]].oldElo) - 1000;
+							var post = Math.round(userData[playerIDs[j]].elo) - 1000;
+							if ((prior > 0) || (post > 0)) {
+								if (prior <= 0) {
+									prior = 0;
+								}
+								if (post <= 0) {
+									post = 0;
+								}
+								
+								var change = post - prior;
+								postGameMsg += '<div><span style="color:'+ gameData[gameID].players[playerIDs[j]].color +'; font-weight:bold;">'+ userData[playerIDs[j]].username +'</span><span class="dimMsg">: ';
+								postGameMsg += prior + '&rarr;</span>' + post +' </span>';
+								if (change > 0) {
+									postGameMsg += '<span class="greenMsg">(+' + change + ')</span>';
+								} else if (change == 0) {
+									postGameMsg += '<span>(&plusmn;0)</span>';
+								} else {
+									postGameMsg += '<span class="redMsg">(&minus;' + Math.abs(change) + ')</span>';
+								}
+								postGameMsg += '</div>';
+							}
 						}
-						postGameMsg += '</div>';
 					}
 					postGameMsg += '</div>';
 					io.to(gameID).emit('log', postGameMsg, true);
 				
-					if (saveData) {
-						db.sync(function(err) {
-							if (err) throw err;
-							if (typeof userData[playerIDs[0]] !== 'undefined') {
-								User.find({ twitterID: userData[playerIDs[0]].twitterid }, function (err, users){
-									if (err) throw err;
-									if ((users[0].gamesPlayed + 1) !== userData[playerIDs[0]].gamesPlayed) {
-										io.emit('<span class="redMsg">FAILED STATS UPDATE FOR ' + userData[playerIDs[0]].username + '</span>');
-										console.log("failure: " + userData[playerIDs[0]].username);
-										console.log(userData[playerIDs[0]]);
-										console.log(users[0]);
-									} else {
-										// sync with userData, which is already done updating.
-										users[0].elo = userData[playerIDs[0]].elo;
-										users[0].gamesPlayed = userData[playerIDs[0]].gamesPlayed;
-										users[0].wins = userData[playerIDs[0]].wins;
-										users[0].losses = userData[playerIDs[0]].losses;
-										users[0].draws = userData[playerIDs[0]].draws;
-										users[0].avgMoveCount += ((gameData[gameID].moveCount - users[0].avgMoveCount) / users[0].gamesPlayed);
-										users[0].save(function (err) {
-											if (err) throw err;
-											console.log("success: " + userData[playerIDs[0]].username);
-										});
-									}
-								});
-							}
-							if (typeof userData[playerIDs[1]] !== 'undefined') {
-								User.find({ twitterID: userData[playerIDs[1]].twitterid }, function (err, users){
-									if (err) throw err;
-									if ((users[0].gamesPlayed + 1) !== userData[playerIDs[1]].gamesPlayed) {
-										io.emit('<span class="redMsg">FAILED STATS UPDATE FOR ' + userData[playerIDs[1]].username + '</span>');
-										console.log("failure: " + userData[playerIDs[1]].username);
-										console.log(userData[playerIDs[0]]);
-										console.log(users[0]);
-									} else {
-										//afaik can only update one user at a time.
-										users[0].elo = userData[playerIDs[1]].elo;
-										users[0].gamesPlayed = userData[playerIDs[1]].gamesPlayed;
-										users[0].wins = userData[playerIDs[1]].wins;
-										users[0].losses = userData[playerIDs[1]].losses;
-										users[0].draws = userData[playerIDs[1]].draws;
-										users[0].avgMoveCount += ((gameData[gameID].moveCount - users[0].avgMoveCount) / users[0].gamesPlayed);
-										users[0].save(function (err) {
-											if (err) throw err;
-											console.log("success: " + userData[playerIDs[1]].username);
-										});
-									}
-								});
-							}
-						});
-					}
+						if (saveData) {
+							db.sync(function(err) {
+								if (err) throw err;
+								if (typeof userData[playerIDs[0]] !== 'undefined') {
+									User.find({ twitterID: userData[playerIDs[0]].twitterid }, function (err, users){
+										if (err) throw err;
+										if ((users[0].gamesPlayed + 1) !== userData[playerIDs[0]].gamesPlayed) {
+											io.emit('log', '<span class="redMsg">FAILED STATS UPDATE FOR ' + userData[playerIDs[0]].username + '</span>');
+											console.log("failure: " + userData[playerIDs[0]].username);
+											console.log("users[0].gamesPlayed + 1 = " + (users[0].gamesPlayed + 1));
+											console.log("userData[playerIDs[0].gamesPlayed = " + userData[playerIDs[0]].gamesPlayed);
+										} else {
+											// sync with userData, which is already done updating.
+											users[0].elo = userData[playerIDs[0]].elo;
+											users[0].gamesPlayed = userData[playerIDs[0]].gamesPlayed;
+											users[0].wins = userData[playerIDs[0]].wins;
+											users[0].losses = userData[playerIDs[0]].losses;
+											users[0].draws = userData[playerIDs[0]].draws;
+											users[0].avgMoveCount += ((gameData[gameID].moveCount - users[0].avgMoveCount) / users[0].gamesPlayed);
+											users[0].save(function (err) {
+												if (err) throw err;
+												console.log("success: " + userData[playerIDs[0]].username);
+											});
+										}
+									});
+								}
+								if (typeof userData[playerIDs[1]] !== 'undefined') {
+									User.find({ twitterID: userData[playerIDs[1]].twitterid }, function (err, users2){
+										if (err) throw err;
+										if ((users2[0].gamesPlayed + 1) !== userData[playerIDs[1]].gamesPlayed) {
+											io.emit('log', '<span class="redMsg">FAILED STATS UPDATE FOR ' + userData[playerIDs[1]].username + '</span>');
+											console.log("failure: " + userData[playerIDs[1]].username);
+											console.log("users[0].gamesPlayed + 1 = " + (users2[0].gamesPlayed + 1));
+											console.log("userData[playerIDs[1].gamesPlayed = " + userData[playerIDs[0]].gamesPlayed);
+										} else {
+											//afaik can only update one user at a time.
+											users2[0].elo = userData[playerIDs[1]].elo;
+											users2[0].gamesPlayed = userData[playerIDs[1]].gamesPlayed;
+											users2[0].wins = userData[playerIDs[1]].wins;
+											users2[0].losses = userData[playerIDs[1]].losses;
+											users2[0].draws = userData[playerIDs[1]].draws;
+											users2[0].avgMoveCount += ((gameData[gameID].moveCount - users2[0].avgMoveCount) / users2[0].gamesPlayed);
+											users2[0].save(function (err) {
+												if (err) throw err;
+												console.log("success: " + userData[playerIDs[1]].username);
+											});
+										}
+									});
+								}
+							});
+						}
 				}
 			} else {
 				gameData[gameID].ratingsCalculated = true;
@@ -2861,7 +2815,13 @@ var handleDBResult = function(err, User, db) {
 			return emptyColor;
 		}
 	}
-
+	function returnDisplayElo (socketID) {
+		var displayElo = Math.round(userData[socketID].elo) - 1000;
+		if ((displayElo < 0) || (userData[socketID].gamesPlayed < 10)) {
+			displayElo = 0;
+		}
+		return displayElo;
+	}
 	function renderLobby(socket) {
 
 		// callback function after gathering data from DB:
@@ -2887,7 +2847,7 @@ var handleDBResult = function(err, User, db) {
 				wins : userData[socket.id].wins,
 				draws : userData[socket.id].draws,
 				losses : userData[socket.id].losses,
-				elo : userData[socket.id].elo,
+				displayElo : returnDisplayElo(socket.id),
 				remainingRerolls : userData[socket.id].remainingRerolls
 			}
 		}
@@ -2931,24 +2891,16 @@ var handleDBResult = function(err, User, db) {
 					} else {
 						_full = true;
 					}
-					
-					function roundElo(elo) {
-						if (elo == -99999) {
-							return '1000';
-						} else {
-							return (Math.round(elo));
-						}
-					}
-					
-					_elo = roundElo(userData[gameData[game].creator].elo);
-					
+		
+					_elo = returnDisplayElo(gameData[game].creator);
+
 					if (_full) {
 						for (player in gameData[game].players) {
 							if (player !== gameData[game].creator) {
 								if (typeof userData[player] !== 'undefined') {
 									_opponent = userData[player].username;
 									_opponentColor = userData[player].color;
-									_opponentElo = roundElo(userData[player].elo);
+									_opponentElo = returnDisplayElo(player);
 								}
 							}
 						}
@@ -2968,11 +2920,8 @@ var handleDBResult = function(err, User, db) {
 						creatorElo: _elo
 					});
 				}
-				
-				// creator elo, opponent elo, score
 			}
 		}
-		
 		return lobbyData;
 	}
 
@@ -2984,7 +2933,7 @@ var handleDBResult = function(err, User, db) {
 			
 			var leaderData = [];
 			for (var i = 0; i < data.length; i++) {
-				if (data[i].elo != -99999) { // or perhaps if gamesPlayed != 0
+				if ((data[i].gamesPlayed > 10) && (Math.round(data[i].elo) > 1000)) {
 					leaderData.push({
 						displayName: decodeURI(data[i].displayName),
 						color: data[i].color,
@@ -2992,7 +2941,7 @@ var handleDBResult = function(err, User, db) {
 						wins: data[i].wins,
 						draws: data[i].draws,
 						losses: data[i].losses,
-						elo: Math.round(data[i].elo)
+						elo: (Math.round(data[i].elo) - 1000)
 					});
 				}
 			}

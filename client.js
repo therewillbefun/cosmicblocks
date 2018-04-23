@@ -1320,10 +1320,12 @@ function addHeading (user, name, color, elo) {
 	if ($('#playerLeft').is(':empty')){
 		headingLocation = '#playerLeft';
 	}
-	if (elo == -99999) { 
-		elo = 1000;
+	var appendString = '<div class="heading-'+user+'" style="color: ' + color + ';">' + name + ' <span style="font-weight:normal; color:white;">';
+	if (elo > 0) {
+		appendString += '(' + elo + ')';
 	}
-	$(headingLocation).append('<div class="heading-'+user+'" style="color: ' + color + ';">' + name + ' <span style="font-weight:normal; color:white;">(' + elo + ')</span></div>');
+	appendString += '</span></div>';
+	$(headingLocation).append(appendString);
 }
 
 function menuBlockEnableDisable() {
@@ -1350,17 +1352,24 @@ function renderGames(lobbyData) {
 	for (var i = 0; i < lobbyData.length; i++) {
 		var gameLocation = '#' + lobbyData[i].gameState;
 		var appendString = '<div class="lobbyGame" style="border: 2px ' + lobbyData[i].creatorColor + ' solid" data-gameid=' + lobbyData[i].id + '>';
-		appendString += '<span class="WhoVsWho"><b>' + lobbyData[i].creator + '</b>&ensp;(' + lobbyData[i].creatorElo + ')';
+		appendString += '<span class="WhoVsWho"><b>' + lobbyData[i].creator + '</b>';
+		if (lobbyData[i].creatorElo > 0) {
+			appendString += '&ensp;(' + lobbyData[i].creatorElo + ')';
+		}
+		
 		if (lobbyData[i].gameType === 'practice') {
 			appendString += '&emsp;<span class="dimMsg">[practice room]</span>';
 		} else if (lobbyData[i].full) {
-			appendString += '&emsp;<span class="dimMsg">vs</span>&emsp;<b>' + lobbyData[i].opponent + '</b>&ensp;(' + lobbyData[i].opponentElo + ')';
+			appendString += '&emsp;<span class="dimMsg">vs</span>&emsp;<b>' + lobbyData[i].opponent + '</b>';
+			if (lobbyData[i].opponentElo > 0) {
+				appendString += '&ensp;(' + lobbyData[i].opponentElo + ')';
+			}
 		}
 		appendString += '</span>'
 
 		
-		if (lobbyData[i].gameType === 'ex') {
-			//appendString += '<span class="gameSettings">EX</span>';
+		if (lobbyData[i].gameType === 'random') {
+			appendString += '<span class="gameSettings">Random</span>';
 		}
 		
 		appendString += '<div class="lobbyButtons"><span class="lobbyButton spectateGameButton">Spectate</span>';
@@ -1547,64 +1556,34 @@ function onlinePlay() {  // hooray! hooray! for online play!
 		$("#lobby").remove();
 		$("#leaderboard").remove();
 		$("#headBoardContainer").remove();
-		
+
+		var appendString = '<div id="lobby"><h1><span style="color:' + lobbyUserData.color + '">' + lobbyUserData.username + '</span>, ';
 		if (isGhost) {
-			
-			$("#container").append(`
-				<div id="lobby">
-					<h1><span style="color: ` + lobbyUserData.color + `">`+ lobbyUserData.username +`</span>, you're a ghost!</h1>
-					<div style="padding:20px;">
-						<div id="optionButtons">
-							<a id="howToPlay" class="buttonStyle" href="https://docs.google.com/document/d/1c_rIYxdl2udNHXPFnHj5ELoYPjtej4hDjy7nCHnceG0/edit" target="_blank">How to Play</a>
-							<div id="toggleAudio" class="buttonStyle">`+ audioButtonSVG() +`</div>
-						</div>
-						<div id="gameTypes">
-							<div id="open"></div>
-							<div id="inprogress"></div>
-						</div>
-					</div>
-				</div>
-				<div id="leaderboard">
-					<h1>World Ranking</h1>
-					<div id="rankingContainer">
-						<table id="eloRank"></table>
-					</div>
-				</div> `);
-			
+			appendString += "you're a ghost!";
 		} else {
-		
-			$("#container").append(`
-				<div id="lobby">
-					<h1><span style="color: ` + lobbyUserData.color + `">`+ lobbyUserData.username +`</span>, welcome to Cosmic Blocks!</h1>
-					<div style="padding:20px;">
-						<div id="optionButtons">
-							<div id="newgame" class="buttonStyle">Create Game</div>
-							<div id="practice" class="buttonStyle">Practice Mode</div>
-							<a id="howToPlay" class="buttonStyle" href="https://docs.google.com/document/d/1c_rIYxdl2udNHXPFnHj5ELoYPjtej4hDjy7nCHnceG0/edit" target="_blank">How to Play</a>
-							<div id="toggleAudio" class="buttonStyle">`+ audioButtonSVG() +`</div>
-						</div>
-						<div id="playerStats"></div>
-						<div id="gameTypes">
-							<div id="open"></div>
-							<div id="inprogress"></div>
-						</div>
-					</div>
-				</div>
-				<div id="leaderboard">
-					<h1>World Ranking</h1>
-					<div id="rankingContainer">
-						<table id="eloRank"></table>
-					</div>
-				</div> `);
-				
-			$('#newgame').on("click",function() {
-				socket.emit('new game'); // send the server new game command
-			});
-			$('#practice').on("click",function() {
-				socket.emit('practice mode');
-			});
-			
+			appendString += "welcome to Cosmic Blocks!";
 		}
+		appendString += '</h1><div style="padding:20px;"><div id="optionButtons">';
+		if (!isGhost) {
+			appendString += '<div id="newgame" class="buttonStyle">Create Game</div><div id="randgame" class="buttonStyle">Random Game</div><div id="practice" class="buttonStyle">Practice Mode</div>';
+		}
+		appendString += '<a id="howToPlay" class="buttonStyle" href="https://docs.google.com/document/d/1c_rIYxdl2udNHXPFnHj5ELoYPjtej4hDjy7nCHnceG0/edit" target="_blank">How to Play</a><a class="buttonStyle" href="https://docs.google.com/document/d/1cIwGEWhQYZUPRn1sBzatFuVSNau3VPHxOu9ffszejU4/edit" target="_blank">Documentation</a><div id="toggleAudio" class="buttonStyle">' + audioButtonSVG() +'</div></div>';
+		if (!isGhost) {
+			appendString += '<div id="playerStats"></div>';
+		}
+		appendString += '<div id="gameTypes"><div id="open"></div><div id="inprogress"></div></div></div></div>	<div id="leaderboard"><h1>World Ranking</h1><div id="rankingContainer"><table id="eloRank"></table></div></div>'
+		$("#container").append(appendString);
+				
+		$('#newgame').on("click",function() {
+			socket.emit('new game'); // send the server new game command
+		});
+		$('#randgame').on("click",function() {
+			socket.emit('new game', 'random'); // send the server new game [random board] command
+		});
+		$('#practice').on("click",function() {
+			socket.emit('practice mode');
+		});	
+		
 		
 		toggleAudioButton();
 		
@@ -1632,8 +1611,8 @@ function onlinePlay() {  // hooray! hooray! for online play!
 					appendString += '<li>Games Lost<span class="stat">' + lobbyUserData.losses + '</span></li>';
 				}
 				
-				if (lobbyUserData.elo != -99999) {
-					appendString += '<li>Elo<span class="stat">' + Math.round(lobbyUserData.elo) + '</span></li>';
+				if (lobbyUserData.displayElo > 0) {
+					appendString += '<li>Points<span class="stat">' + lobbyUserData.displayElo + '</span></li>';
 				}
 				appendString += '</ul>';
 				$("#playerStats").append(appendString);
@@ -1725,7 +1704,7 @@ function onlinePlay() {  // hooray! hooray! for online play!
 			renderExitButton();
 			//renderRoomTitle(title);
 			for (var playerID in players) {
-				addHeading(playerID, players[playerID].username, players[playerID].color, players[playerID].elo);
+				addHeading(playerID, players[playerID].username, players[playerID].color, players[playerID].displayElo);
 			}
 			
 			// IF THE GAME IS OPEN, AND HAS NOT STARTED YET:
@@ -2427,10 +2406,10 @@ function onlinePlay() {  // hooray! hooray! for online play!
 		$(".block").removeClass('nohover disabled ice');
 		buildMenu(blockList);
 		showWinState = false;
-		if (typeof creatorElo !== 'undefined') {
+		if ((typeof creatorElo !== 'undefined') && (creatorElo > 0)) {
 			$("#playerLeft > div > span").html('(' + creatorElo + ')');
 		}
-		if (typeof playerElo !== 'undefined') {
+		if ((typeof playerElo !== 'undefined') && (playerElo > 0)) {
 			$("#playerRight > div > span").html('(' + playerElo + ')');
 		}
 	});
