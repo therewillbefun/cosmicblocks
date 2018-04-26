@@ -18,6 +18,7 @@ var yourName; //displayName.
 var opponents = []; // who u playin against
 var socket; // online multiplayer!
 var isGhost; // is this open in a second tab.
+var ghostFlow; // are you auto-spectating?
 var inGame = false; // are you in a game or in the lobby?
 var showWinState = false; // should the winState be shown?
 var player = false; // are you a player
@@ -26,6 +27,7 @@ var collisionColor = "#202020"; // collision color...
 var priorColorList = []; // this will hold all the colors used for highlighting with the .prior-* class.
 var audioEnabled = true;
 var gameTimer;
+var debounce; // used for checking if renderGames function was run multiple times for ghostFlow delay....
 
 // sfx
 const hoverAudio = new Audio("sfx/hover.ogg");
@@ -994,6 +996,16 @@ function cleanup(winners, reason) {
 	$(".waitMsg").parent().remove();
 	//blockHoverData();
 	renderExitButton();
+	
+	debounce = Math.random();
+	var temp = debounce;
+	if (ghostFlow) {
+		setTimeout(function(){ 
+			if (debounce == temp) {
+				exitGame();
+			}
+		}, 60000);
+	}
 }
 
 function readableBlockName(blockType) { // returns blocknames for hover info that don't suck
@@ -1397,6 +1409,32 @@ function renderGames(lobbyData) {
 		var tempID = $(this).parent().parent().data("gameid");
 		socket.emit('join game', tempID, 'spec');
 	});
+	
+	debounce = Math.random();
+	var temp = debounce;
+	if (ghostFlow) {
+		setTimeout(function(){ 
+			var enticingGame = 'none';
+			var combinedElo = -9999999;
+			for (var i = 0; i < lobbyData.length; i++) {
+				if ((lobbyData[i].gameState == 'open') || (lobbyData[i].gameState == 'inprogress')) {
+					if ((lobbyData[i].full) && (lobbyData[i].creatorElo + lobbyData[i].opponentElo > combinedElo)) {
+						if (lobbyData[i].creatorElo + lobbyData[i].opponentElo > combinedElo) {
+							if (lobbyData[i].gameType !== 'practice') {
+								combinedElo = lobbyData[i].creatorElo + lobbyData[i].opponentElo;
+								enticingGame = i;
+							}
+						}
+					}
+				}
+			}
+			if (enticingGame !== 'none') {
+				if (debounce = temp) {
+					socket.emit('join game', lobbyData[enticingGame].id, 'spec');
+				}
+			}
+		}, 3000);
+	}
 }
 
 function toggleAudioButton() {
@@ -1558,11 +1596,7 @@ function onlinePlay() {  // hooray! hooray! for online play!
 		$("#headBoardContainer").remove();
 
 		var appendString = '<div id="lobby"><h1><span style="color:' + lobbyUserData.color + '">' + lobbyUserData.username + '</span>, ';
-		if (isGhost) {
-			appendString += "you're a ghost!";
-		} else {
-			appendString += "welcome to Cosmic Blocks!";
-		}
+		appendString += "welcome to Cosmic Blocks!";
 		appendString += '</h1><div style="padding:20px;"><div id="optionButtons">';
 		if (!isGhost) {
 			appendString += '<div id="newgame" class="buttonStyle">Create Game</div><div id="randgame" class="buttonStyle">Random Game</div><div id="practice" class="buttonStyle">Practice Mode</div>';
@@ -2353,6 +2387,7 @@ function onlinePlay() {  // hooray! hooray! for online play!
 		you = id;
 		yourName = displayName;
 		isGhost = ghost;
+		ghostFlow = isGhost;
 	});
 	socket.on('connect audio', function() {
 		if (audioEnabled) {
@@ -2367,6 +2402,11 @@ function onlinePlay() {  // hooray! hooray! for online play!
 	socket.on('remove rematch button', function(){
 		//log('<span class="dimMsg">remove rematch button</span>');
 		$("#rematch").remove();
+		if (ghostFlow) {
+			setTimeout(function(){ 
+				exitGame();
+			}, 3000);
+		}
 	});
 	socket.on('render board', function(data) {
 		renderBoard(data);
@@ -2403,6 +2443,7 @@ function onlinePlay() {  // hooray! hooray! for online play!
 		$("#rematch > span").text("Accept Rematch").addClass("blinkText");
 	});
 	socket.on('setup rematch', function(blockList, creatorElo, playerElo) {
+		debounce = Math.random();
 		$(".block").removeClass('nohover disabled ice');
 		buildMenu(blockList);
 		showWinState = false;

@@ -127,17 +127,27 @@ var handleDBResult = function(err, User, db) {
 	}));
 
 	passport.use('twitter', new TwitterStrategy({
-			// this key/secret is from the Twitter App page that has Cosmic Blocks.
-			consumerKey: CREDENTIALS.twitterConsumerKey,
-			consumerSecret: CREDENTIALS.twitterConsumerSecret,
-			callbackURL: "https://cuddle.zone:" + port + "/login/twitter/callback"
-		}, 
-		function(token, tokenSecret, profile, done) {
-			process.nextTick(function() { 
-			// process.nextTick used to wait til the data arrives or something?? idk exactly.
-				if (typeof profile !== 'undefined') {
+		// this key/secret is from the Twitter App page that has Cosmic Blocks.
+		consumerKey: CREDENTIALS.twitterConsumerKey,
+		consumerSecret: CREDENTIALS.twitterConsumerSecret,
+		callbackURL: "https://cuddle.zone:" + port + "/login/twitter/callback"
+	}, 
+	function(token, tokenSecret, profile, done) {
+		process.nextTick(function() { 
+			// process.nextTick used to wait til the data arrives (??)
+			if (typeof profile !== 'undefined') {
 				// the profile may be undefined if you just try to connect to the success url...
-					//if (twitterAuthList.indexOf(profile.username) > -1) {
+				userInfo = {
+					twitterid: profile.id,
+					username: profile.username,
+					displayName: profile.displayName,
+				};
+				return done(null, userInfo);
+			}
+		});
+	}));
+						
+						/*
 						
 						// add the table to the database
 						db.sync(function(err) {
@@ -202,26 +212,8 @@ var handleDBResult = function(err, User, db) {
 										elo: tempElo,
 										gamesPlayed: tempGamesPlayed
 									};
-									return done(null, userInfo);
-								});
-							} else {
-								console.log("Tried to connect to passport before server connected to database. (this should never happen)");
-							}
-						});
-						
-					
-					/*
-					} else {
-						console.log(profile.username + ' not on auth list.')
-						return done();
-					}
-					*/
-				} else {
-					return done();
-				}
-			});
-		})
-	);
+									*/
+								
 	passport.serializeUser(function(user, done) {
 		//place user's id in cookie
 		done(null, user);
@@ -296,6 +288,7 @@ var handleDBResult = function(err, User, db) {
 				color: '#808080',
 				ghost:true
 			}
+			welcome(socket.id);
 		} else {
 			// if we are recording stats, increment connections.
 			if (saveData) {
@@ -304,45 +297,84 @@ var handleDBResult = function(err, User, db) {
 					User.find({ twitterID: socket.request.user.twitterid }, function (err, users){
 						if (err) throw err;
 						if (users.length === 0) {
-							//...
+							// no user, so we must create it.
+							var passedColor = assignColor();
+							userData[socket.id] = {
+								twitterid: socket.request.user.twitterid,
+								username: socket.request.user.displayName,
+								room: false,
+								color: passedColor,
+								gamesPlayed: 0,
+								timePlayed: 0,
+								wins: 0,
+								draws: 0,
+								losses: 0,
+								remainingRerolls: 0,
+								elo: -99999,
+								ghost: false
+							};
+							
+							User.create({ 
+								displayName: encodeURI(socket.request.user.displayName), 
+								wins: 0,
+								draws: 0,
+								losses: 0,
+								elo: -99999,
+								color: passedColor,
+								twitterID: socket.request.user.twitterid,
+								gamesPlayed: 0,
+								twitterHandle: socket.request.user.username,
+								forfeits: 0,
+								avgMoveCount: 0,
+								connections: 1,
+								timePlayed: 0
+							}, function(err) {
+								if (err) throw err;
+							});
+							console.log ('@' + socket.request.user.username + ' created.');
 						} else {
 							users[0].connections++;
+							userData[socket.id] = {
+								twitterid: socket.request.user.twitterid,
+								username: socket.request.user.displayName,
+								room: false,
+								color: users[0].color,
+								gamesPlayed: users[0].gamesPlayed,
+								timePlayed: users[0].timePlayed,
+								wins: users[0].wins,
+								draws: users[0].draws,
+								losses: users[0].losses,
+								remainingRerolls: 0,
+								elo: users[0].elo,
+								ghost: false
+							};
+								
 							users[0].save(function (err) {
 								if (err) throw err;
 							});
 						}
+						welcome(socket.id);
 					});
 				});
 			}
-			userData[socket.id] = {
-				twitterid: socket.request.user.twitterid,
-				username: socket.request.user.displayName,
-				room: false,
-				color: socket.request.user.color,
-				gamesPlayed: socket.request.user.gamesPlayed,
-				timePlayed: socket.request.user.timePlayed,
-				wins: socket.request.user.wins,
-				draws: socket.request.user.draws,
-				losses: socket.request.user.losses,
-				remainingRerolls: 0,
-				elo: socket.request.user.elo,
-				ghost: false
-			};
 		}
-		socket.emit('store id', socket.id, userData[socket.id].username, userData[socket.id].ghost);
-		io.emit('log', '<span style="color: '+ userData[socket.id].color +'"><b>' + userData[socket.id].username + '</b> connected.</span><span style="float:right;" class="greenMsg">' + Object.keys(userData).length + '</span>');
-		if (saveData) {
-			socket.emit('log', '<b>Welcome to Cosmic Blocks!</b>');
-			socket.emit('log', 'Consider joining <a href="https://discord.gg/szpznUj" target="_blank">Narcissa\'s Castle</a>, where game discussion happens.');
-		} else {
-			socket.emit('log', '<b>Development mode</b>: game results and rating changes will <span class="redMsg">not</span> be saved.');
+		
+		function welcome(socketID) {
+			socket.emit('store id', socket.id, userData[socketID].username, userData[socketID].ghost);
+			io.emit('log', '<span style="color: '+ userData[socketID].color +'"><b>' + userData[socketID].username + '</b> connected.</span><span style="float:right;" class="greenMsg">' + Object.keys(userData).length + '</span>');
+			if (saveData) {
+				socket.emit('log', '<b>Welcome to Cosmic Blocks!</b>');
+				socket.emit('log', 'Consider joining <a href="https://discord.gg/szpznUj" target="_blank">Narcissa\'s Castle</a>, where game discussion happens.');
+			} else {
+				socket.emit('log', '<b>Development mode</b>: game results and rating changes will <span class="redMsg">not</span> be saved.');
+			}
+			io.to('lobby').emit('log', '<span class="dimMsg">' + userData[socketID].username + ' joined lobby.');
+			socket.emit('make chat available', userData[socketID].username);
+			socket.emit('log', '<div class="roomChange">joining lobby</div>', true);
+			socket.join('lobby'); // joins the socket io room "lobby"
+			userData[socketID].room = 'lobby';
+			renderLobby(socket); // render lobby.
 		}
-		io.to('lobby').emit('log', '<span class="dimMsg">' + userData[socket.id].username + ' joined lobby.');
-		socket.emit('make chat available', userData[socket.id].username);
-		socket.emit('log', '<div class="roomChange">joining lobby</div>', true);
-		socket.join('lobby'); // joins the socket io room "lobby"
-		userData[socket.id].room = 'lobby';
-		renderLobby(socket); // render lobby.
 		
 		socket.on('error', function (err) { 
 			console.error(err.stack);
@@ -401,6 +433,7 @@ var handleDBResult = function(err, User, db) {
 			} else if (splitMessage[0] === '/debug' && isNarcissa(twitterid)) {
 				socket.emit('console log', 'USER DATA:');
 				for (user in userData) {
+					socket.emit('console log', user);
 					socket.emit('console log', userData[user]);
 				}
 				socket.emit('console log', 'GAME PLAYER DATA:');
@@ -631,95 +664,97 @@ var handleDBResult = function(err, User, db) {
 		});
 		*/
 		function setupGame(gameID, passedStatus) {
-			socket.leave('lobby');
-			if (passedStatus === 'spec') {
-				socket.emit('log', '<div class="roomChange">spectating game</div>', true);
-			} else {
-				if (gameData[gameID].creator == socket.id) {
-					socket.emit('log', '<div class="roomChange">creating game</div>', true);
+			if (typeof gameData[gameID] !== 'undefined') {
+				socket.leave('lobby');
+				if (passedStatus === 'spec') {
+					socket.emit('log', '<div class="roomChange">spectating game</div>', true);
 				} else {
-					socket.emit('log', '<div class="roomChange">joining game</div>', true);
+					if (gameData[gameID].creator == socket.id) {
+						socket.emit('log', '<div class="roomChange">creating game</div>', true);
+					} else {
+						socket.emit('log', '<div class="roomChange">joining game</div>', true);
+					}
 				}
-			}
-			
-			var joinStatus = 'spectator'; // by default you're a specatator
-			var displayBoard = gameData[gameID].board;
-			
-			if (passedStatus !== 'spec') {
-				if (gameData[gameID].gameState == 'open') {
-					
-					// if the game is open, check if there are vacant slots
-					var playerCount = Object.keys(gameData[gameID].players).length;
-					if (playerCount < gameData[gameID].maxPlayers) {
-						setPlayer(gameID, socket.id);
+				
+				var joinStatus = 'spectator'; // by default you're a specatator
+				var displayBoard = gameData[gameID].board;
+				
+				if (passedStatus !== 'spec') {
+					if (gameData[gameID].gameState == 'open') {
 						
-						// check if this is the creator of the game
-						if (gameData[gameID].creator == socket.id) {
-							joinStatus = 'creator';
-						} else {
-							joinStatus = 'player';
-							var playerCount = Object.keys(gameData[gameID].players).length;
-							if (playerCount < gameData[gameID].maxPlayers) {
-								//gameData[gameID].gameState == 'full';
+						// if the game is open, check if there are vacant slots
+						var playerCount = Object.keys(gameData[gameID].players).length;
+						if (playerCount < gameData[gameID].maxPlayers) {
+							setPlayer(gameID, socket.id);
+							
+							// check if this is the creator of the game
+							if (gameData[gameID].creator == socket.id) {
+								joinStatus = 'creator';
+							} else {
+								joinStatus = 'player';
+								var playerCount = Object.keys(gameData[gameID].players).length;
+								if (playerCount < gameData[gameID].maxPlayers) {
+									//gameData[gameID].gameState == 'full';
+								}
+							}
+						}
+					}
+					
+					// log
+					if (joinStatus !== 'creator') {
+						io.to('lobby').emit('log', '<span style="color:' + userData[socket.id].color + ';">' + userData[socket.id].username + '</span> joined ' + gameData[gameID].title + '.');
+					}
+				} else {
+					gameData[gameID].specsList.push(socket.id);
+					if (gameData[gameID].gameState == 'inprogress') {
+						// spec board.
+						displayBoard = JSON.parse(JSON.stringify(gameData[gameID].board));
+						for (var i = 0; i < displayBoard.length; i++) {
+							if (displayBoard[i].type == 'mine') {
+								hiddenInformation(displayBoard[i]);
 							}
 						}
 					}
 				}
 				
-				// log
-				if (joinStatus !== 'creator') {
-					io.to('lobby').emit('log', '<span style="color:' + userData[socket.id].color + ';">' + userData[socket.id].username + '</span> joined ' + gameData[gameID].title + '.');
+				var color = "#8474a4"
+				if (typeof gameData[gameID].players[socket.id] != 'undefined') {
+					color = gameData[gameID].players[socket.id].color;
 				}
-			} else {
-				gameData[gameID].specsList.push(socket.id);
-				if (gameData[gameID].gameState == 'inprogress') {
-					// spec board.
-					displayBoard = JSON.parse(JSON.stringify(gameData[gameID].board));
-					for (var i = 0; i < displayBoard.length; i++) {
-						if (displayBoard[i].type == 'mine') {
-							hiddenInformation(displayBoard[i]);
-						}
+				joinMsg(joinStatus, color, userData[socket.id].username);
+				function joinMsg ( joinStatus, color, username) {
+					io.to(gameID).emit('log', '<span style="color: ' + color + '">' + username + ' joined as ' +  joinStatus + '.</span>');
+					if (joinStatus !== 'spectator') {
+						io.to(gameID).emit('add to heading', socket.id, userData[socket.id].username, gameData[gameID].players[socket.id].color, gameData[gameID].players[socket.id].elo);
+						io.to(gameID).emit('render board', gameData[gameID].board);
 					}
 				}
-			}
-			
-			var color = "#8474a4"
-			if (typeof gameData[gameID].players[socket.id] != 'undefined') {
-				color = gameData[gameID].players[socket.id].color;
-			}
-			joinMsg(joinStatus, color, userData[socket.id].username);
-			function joinMsg ( joinStatus, color, username) {
-				io.to(gameID).emit('log', '<span style="color: ' + color + '">' + username + ' joined as ' +  joinStatus + '.</span>');
-				if (joinStatus !== 'spectator') {
-					io.to(gameID).emit('add to heading', socket.id, userData[socket.id].username, gameData[gameID].players[socket.id].color, gameData[gameID].players[socket.id].elo);
-					io.to(gameID).emit('render board', gameData[gameID].board);
+				
+				socket.join(gameID);
+				userData[socket.id].room = gameID;
+				
+				socket.emit('setup game', 
+					gameID,
+					joinStatus,
+					gameData[gameID].title,
+					gameData[gameID].rows, 
+					gameData[gameID].cols, 
+					displayBoard, 
+					gameData[gameID].players,
+					gameData[gameID].gameState,
+					gameData[gameID].blockList,
+					gameData[gameID].timeLimit,
+					gameData[gameID].collisionMode,
+					gameData[gameID].moveCount,
+					gameData[gameID].timerValue,
+					gameData[gameID].gameType
+				);
+				if (gameData[gameID].gameState == 'gameover') {
+					gameOver(gameID);
 				}
+				updateLobby();
+				io.to(gameID).emit('update user list', userList(gameID));
 			}
-			
-			socket.join(gameID);
-			userData[socket.id].room = gameID;
-			
-			socket.emit('setup game', 
-				gameID,
-				joinStatus,
-				gameData[gameID].title,
-				gameData[gameID].rows, 
-				gameData[gameID].cols, 
-				displayBoard, 
-				gameData[gameID].players,
-				gameData[gameID].gameState,
-				gameData[gameID].blockList,
-				gameData[gameID].timeLimit,
-				gameData[gameID].collisionMode,
-				gameData[gameID].moveCount,
-				gameData[gameID].timerValue,
-				gameData[gameID].gameType
-			);
-			if (gameData[gameID].gameState == 'gameover') {
-				gameOver(gameID);
-			}
-			updateLobby();
-			io.to(gameID).emit('update user list', userList(gameID));
 		}
 		
 		function userList(gameID) {
@@ -1211,94 +1246,104 @@ var handleDBResult = function(err, User, db) {
 			var gameID = userData[socket.id].room;
 			if (gameExists()) {
 				if (gameData[gameID].gameState == 'gameover' && gameData[gameID].noRematch == false) {
-					gameData[gameID].players[socket.id].rematchOffered = true;
-					var numPlayers = 0;
-					var numYesRematch = 0;
+					var hacking = true;
 					for (player in gameData[gameID].players) {
-						numPlayers++;
-						if (gameData[gameID].players[player].rematchOffered == true) {
-							numYesRematch++;
+						if (player == socket.id) {
+							hacking = false;
 						}
 					}
-					if (numPlayers !== numYesRematch) {
-						socket.broadcast.to(gameID).emit('rematch offered');
-						io.to(gameID).emit('log', '<span class="dimMsg">'+ userData[socket.id].username +' offered a rematch.</span>');
-					} else {
-						// REMATCH INITIATED!!
-						gameData[gameID].board = JSON.parse(JSON.stringify(gameData[gameID].initialBoard));
-						gameData[gameID].ratingsCalculated = false;
-						
-						var over1000 = 0;
-						var creatorElo = returnDisplayElo(gameData[gameID].creator);
-						var playerElo = creatorElo; // initially set this to creatorElo but change it if it's found to be different.
+					if (!hacking) {
+						gameData[gameID].players[socket.id].rematchOffered = true;
+						var numPlayers = 0;
+						var numYesRematch = 0;
 						for (player in gameData[gameID].players) {
-							gameData[gameID].players[player].blockList = JSON.parse(JSON.stringify(gameData[gameID].blockList));
-							gameData[gameID].players[player].winner = false;
-							gameData[gameID].players[player].winPath = [];
-							gameData[gameID].players[player].hasMoved = false;
-							gameData[gameID].players[player].onStandby = false;
-							gameData[gameID].players[player].offeredDraw = false;
-							gameData[gameID].players[player].rematchOffered = false;
-							gameData[gameID].players[player].disconnected = false;
-							gameData[gameID].players[player].forfeit = false;
-							if (userData[player].elo !== creatorElo) { 
-								// if it's different, set it to the other player's elo.
-								playerElo = returnDisplayElo(player);
+							numPlayers++;
+							if (gameData[gameID].players[player].rematchOffered == true) {
+								numYesRematch++;
 							}
-							
-							
-							/*
-							if (userData[player].elo > 1000) {
-								over1000++;
-							}
-							*/
 						}
-						gameData[gameID].totalGames++;
-						
-						var iceBoard = false;
-						/*
-						if ((gameData[gameID].totalGames >= 4) && (over1000 == 2)) {
-							// if at least 4 games were played, and both players are over 1000 elo
-							if (rand(1,7) == 7) {
-								// if 1/7
-								console.log('ice board');
-								iceBoard = true;
-								for (var i = 0; i < (gameData[gameID].board.length / 2); i++) {
-									if (gameData[gameID].board[i].type == 'blank' && (rand(1,15) == 15)) {
-										gameData[gameID].board[i].type = 'ice';
-										gameData[gameID].board[(gameData[gameID].board.length - i - 1)].type = 'ice';
-									}
+						if (numPlayers !== numYesRematch) {
+							socket.broadcast.to(gameID).emit('rematch offered');
+							io.to(gameID).emit('log', '<span class="dimMsg">'+ userData[socket.id].username +' offered a rematch.</span>');
+						} else {
+							// REMATCH INITIATED!!
+							gameData[gameID].board = JSON.parse(JSON.stringify(gameData[gameID].initialBoard));
+							gameData[gameID].ratingsCalculated = false;
+							
+							var over1000 = 0;
+							var creatorElo = returnDisplayElo(gameData[gameID].creator);
+							var playerElo = creatorElo; // initially set this to creatorElo but change it if it's found to be different.
+							for (player in gameData[gameID].players) {
+								gameData[gameID].players[player].blockList = JSON.parse(JSON.stringify(gameData[gameID].blockList));
+								gameData[gameID].players[player].winner = false;
+								gameData[gameID].players[player].winPath = [];
+								gameData[gameID].players[player].hasMoved = false;
+								gameData[gameID].players[player].onStandby = false;
+								gameData[gameID].players[player].offeredDraw = false;
+								gameData[gameID].players[player].rematchOffered = false;
+								gameData[gameID].players[player].disconnected = false;
+								gameData[gameID].players[player].forfeit = false;
+								if (userData[player].elo !== creatorElo) { 
+									// if it's different, set it to the other player's elo.
+									playerElo = returnDisplayElo(player);
 								}
 								
-								// clear surrounding. this shit sucks for different board sizes just FYI!!!
-								updateBlock(gameID, 4, 5, "blank");
-								updateBlock(gameID, 5, 5, "blank");
-								updateBlock(gameID, 6, 5, "blank");
-								updateBlock(gameID, 4, 6, "blank");
-								updateBlock(gameID, 6, 6, "blank");
-								updateBlock(gameID, 4, 7, "blank");
-								updateBlock(gameID, 5, 7, "blank");
-								updateBlock(gameID, 6, 7, "blank");
 								
-								updateBlock(gameID, 16, 5, "blank");
-								updateBlock(gameID, 17, 5, "blank");
-								updateBlock(gameID, 18, 5, "blank");
-								updateBlock(gameID, 16, 6, "blank");
-								updateBlock(gameID, 18, 6, "blank");
-								updateBlock(gameID, 16, 7, "blank");
-								updateBlock(gameID, 17, 7, "blank");
-								updateBlock(gameID, 18, 7, "blank");
+								/*
+								if (userData[player].elo > 1000) {
+									over1000++;
+								}
+								*/
 							}
+							gameData[gameID].totalGames++;
+							
+							var iceBoard = false;
+							/*
+							if ((gameData[gameID].totalGames >= 4) && (over1000 == 2)) {
+								// if at least 4 games were played, and both players are over 1000 elo
+								if (rand(1,7) == 7) {
+									// if 1/7
+									console.log('ice board');
+									iceBoard = true;
+									for (var i = 0; i < (gameData[gameID].board.length / 2); i++) {
+										if (gameData[gameID].board[i].type == 'blank' && (rand(1,15) == 15)) {
+											gameData[gameID].board[i].type = 'ice';
+											gameData[gameID].board[(gameData[gameID].board.length - i - 1)].type = 'ice';
+										}
+									}
+									
+									// clear surrounding. this shit sucks for different board sizes just FYI!!!
+									updateBlock(gameID, 4, 5, "blank");
+									updateBlock(gameID, 5, 5, "blank");
+									updateBlock(gameID, 6, 5, "blank");
+									updateBlock(gameID, 4, 6, "blank");
+									updateBlock(gameID, 6, 6, "blank");
+									updateBlock(gameID, 4, 7, "blank");
+									updateBlock(gameID, 5, 7, "blank");
+									updateBlock(gameID, 6, 7, "blank");
+									
+									updateBlock(gameID, 16, 5, "blank");
+									updateBlock(gameID, 17, 5, "blank");
+									updateBlock(gameID, 18, 5, "blank");
+									updateBlock(gameID, 16, 6, "blank");
+									updateBlock(gameID, 18, 6, "blank");
+									updateBlock(gameID, 16, 7, "blank");
+									updateBlock(gameID, 17, 7, "blank");
+									updateBlock(gameID, 18, 7, "blank");
+								}
+							}
+							*/
+							
+							io.to(gameID).emit('setup rematch', gameData[gameID].blockList, creatorElo, playerElo);
+							io.to(gameID).emit('log', '<span class="dimMsg">Rematch initiated</span>');
+							if (iceBoard) {
+								io.to(gameID).emit('log', '<span class="coldWeather">Cold weather!</span>');
+							}
+							io.to(gameID).emit('render board', gameData[gameID].board);
+							startGame(gameID);
 						}
-						*/
-						
-						io.to(gameID).emit('setup rematch', gameData[gameID].blockList, creatorElo, playerElo);
-						io.to(gameID).emit('log', '<span class="dimMsg">Rematch initiated</span>');
-						if (iceBoard) {
-							io.to(gameID).emit('log', '<span class="coldWeather">Cold weather!</span>');
-						}
-						io.to(gameID).emit('render board', gameData[gameID].board);
-						startGame(gameID);
+					} else {
+						socket.emit('log', '<span class="redMsg">No hacking!</span>');
 					}
 				} else {
 					socket.emit('log', '<span class="redMsg">rematch not possible in <i>offer rematch</i>!</span>');
@@ -2288,7 +2333,6 @@ var handleDBResult = function(err, User, db) {
 			if (gameData[gameID].moveCount > 1) {
 				if (gameData[gameID].ratingsCalculated == false) {
 					for (playerID in gameData[gameID].players) {
-						//var twitterid = userData[playerID].twitterid;
 						if (drawGame == false) {
 							if (playerID === winners[0]) {
 								gameData[gameID].players[playerID].wins++;
@@ -2399,9 +2443,7 @@ var handleDBResult = function(err, User, db) {
 										if (err) throw err;
 										if ((users[0].gamesPlayed + 1) !== userData[playerIDs[0]].gamesPlayed) {
 											io.emit('log', '<span class="redMsg">FAILED STATS UPDATE FOR ' + userData[playerIDs[0]].username + '</span>');
-											console.log("failure: " + userData[playerIDs[0]].username);
-											console.log("users[0].gamesPlayed + 1 = " + (users[0].gamesPlayed + 1));
-											console.log("userData[playerIDs[0].gamesPlayed = " + userData[playerIDs[0]].gamesPlayed);
+											io.emit('log', '<span class="redMsg">' + playerIDs[0] + '</span>');
 										} else {
 											// sync with userData, which is already done updating.
 											users[0].elo = userData[playerIDs[0]].elo;
@@ -2422,9 +2464,7 @@ var handleDBResult = function(err, User, db) {
 										if (err) throw err;
 										if ((users2[0].gamesPlayed + 1) !== userData[playerIDs[1]].gamesPlayed) {
 											io.emit('log', '<span class="redMsg">FAILED STATS UPDATE FOR ' + userData[playerIDs[1]].username + '</span>');
-											console.log("failure: " + userData[playerIDs[1]].username);
-											console.log("users[0].gamesPlayed + 1 = " + (users2[0].gamesPlayed + 1));
-											console.log("userData[playerIDs[1].gamesPlayed = " + userData[playerIDs[0]].gamesPlayed);
+											io.emit('log', '<span class="redMsg">' + playerIDs[1] + '</span>');
 										} else {
 											//afaik can only update one user at a time.
 											users2[0].elo = userData[playerIDs[1]].elo;
@@ -2933,7 +2973,7 @@ var handleDBResult = function(err, User, db) {
 			
 			var leaderData = [];
 			for (var i = 0; i < data.length; i++) {
-				if ((data[i].gamesPlayed > 10) && (Math.round(data[i].elo) > 1000)) {
+				if ((data[i].gamesPlayed >= 10) && (Math.round(data[i].elo) > 1000)) {
 					leaderData.push({
 						displayName: decodeURI(data[i].displayName),
 						color: data[i].color,
