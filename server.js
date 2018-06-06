@@ -1508,84 +1508,7 @@ var handleDBResult = function(err, User, db) {
 		return color;
 	}
 
-	// GAME MODES
-	function classicMode(gameID) {
-		gameData[gameID].gameType = 'classic';
-		gameData[gameID].rows = 9;
-		gameData[gameID].cols = 20;
-		initializeBoard (gameID, gameData[gameID].rows, gameData[gameID].cols);
-		updateBlock(gameID, 5, 5, "base");
-		updateBlock(gameID, 16, 5, "base");
-		gameData[gameID].timeLimit = 60;
-		gameData[gameID].timerValue = 60;
-		gameData[gameID].collisionMode = { 
-			permanence: 3
-		};
-		gameData[gameID].blockList = {
-			plus: {	ammo: false },
-			cross: {ammo: false },
-			arrow4: { ammo: 5 },
-			arrow6: { ammo: 5 },
-			arrow7: { ammo: 5 },
-			arrow9: { ammo: 5 },
-			//ice: { ammo: false },
-			//knight: { ammo: false },
-			
-			oplus: { ammo: 5 },
-			ocross: { ammo: 5 },
-			arrow8: { ammo: 5 },
-			arrow2: { ammo: 5 },
-			arrow1: { ammo: 5 },
-			arrow3: { ammo: 5 }
-		};
-		//  +  x  4  6  7  9
-		// o+ ox  8  2  1  3
-	}
-	function advancedMode(gameID) {
-		gameData[gameID].gameType = 'advanced';
-		gameData[gameID].rows = 11;
-		gameData[gameID].cols = 21;
-		initializeBoard (gameID, gameData[gameID].rows, gameData[gameID].cols);
-		updateBlock(gameID, 5, 6, "base");
-		updateBlock(gameID, 17, 6, "base");
-		
-		// middle ice thing:
-		/*
-		updateBlock(gameID, 10, 5, "ice");
-		updateBlock(gameID, 11, 5, "ice");
-		updateBlock(gameID, 12, 5, "ice");
-		updateBlock(gameID, 10, 6, "ice");
-		updateBlock(gameID, 11, 6, "blockade");
-		updateBlock(gameID, 12, 6, "ice");
-		updateBlock(gameID, 10, 7, "ice");
-		updateBlock(gameID, 11, 7, "ice");
-		updateBlock(gameID, 12, 7, "ice");
-		*/
-		gameData[gameID].timeLimit = 30;
-		gameData[gameID].timerValue = 30;
-		gameData[gameID].blockList = {
-			star: { ammo: 1 },
-			plus: {	ammo: false },
-			cross: { ammo: false },
-			arrow4: { ammo: 2 },
-			arrow6: { ammo: 2 },
-			arrow7: { ammo: 2 },
-			arrow9: { ammo: 2 },
-			
-			circle: { ammo: 2 },
-			oplus: { ammo: 2 },
-			ocross: { ammo: 2 },
-			arrow8: { ammo: 2 },
-			arrow2: { ammo: 2 },
-			arrow1: { ammo: 2 },
-			arrow3: { ammo: 2 }
-		};
-		gameData[gameID].collisionMode = { 
-			permanence: 5
-			// use false for no limit
-		};
-	}
-	
+	// GAME MODES	
 	function exMode(gameID) {
 		gameData[gameID].gameType = 'ex';
 		gameData[gameID].rows = 11;
@@ -1873,7 +1796,7 @@ var handleDBResult = function(err, User, db) {
 		if (gameData[gameID].timeLimit != false) {
 			resetTimer(gameID);
 		}
-					
+		
 		for (block in gameData[gameID].blockList) {
 			for (player in gameData[gameID].players) {
 				gameData[gameID].players[player].blockList[block] = { ammo: gameData[gameID].blockList[block].ammo };

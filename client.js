@@ -23,11 +23,22 @@ var inGame = false; // are you in a game or in the lobby?
 var showWinState = false; // should the winState be shown?
 var player = false; // are you a player
 var emptyColor = "#d5ccbd"; // this is the empty block color passed in from server later on
-var collisionColor = "#202020"; // collision color...
 var priorColorList = []; // this will hold all the colors used for highlighting with the .prior-* class.
 var audioEnabled = true;
 var gameTimer;
 var debounce; // used for checking if renderGames function was run multiple times for ghostFlow delay....
+
+// new color rendering setup
+// preference is either 'global' or 'local'
+// global has the database name color of player1 and player2
+// local has your personal preference for player1 / player2 (prefs also saved in DB to your profile)
+var colors = {
+	preference: 'global',
+	global: ['', ''],
+	local: ['', ''],
+	P1: '', // socketID
+	P2: ''  // socketID
+}
 
 // sfx
 const hoverAudio = new Audio("sfx/hover.ogg");
@@ -223,130 +234,95 @@ function getSVG8by8(blockType, where) {
 		if (blockType == 'circle') {
 			//SVGString += oOutline;
 			SVGString += oShape;
-		}
-		if (blockType == 'base') {
+		} else if (blockType == 'base') {
 			SVGString += '<polygon class="shape" points="62.5,45 62.499,34.999 52.071,35 59.445,27.625 52.374,20.555 44.999,27.93 44.999,17.5 35,17.5 35,27.929 27.625,20.555 20.555,27.625 27.928,35 17.5,35 17.5,45 27.929,45 20.555,52.374 27.625,59.445 35,52.072 34.999,62.499 45,62.5 44.999,52.07 52.374,59.445 59.445,52.374 52.071,45 "/>';
 			SVGString += '<circle class="jewel" cx="40" cy="40" r="7.5"/>';
-		}
-		if (blockType == 'star') {
+		} else if (blockType == 'star') {
 			SVGString += '<polygon class="shape" points="62.5,45 62.499,34.999 52.071,35 59.445,27.625 52.374,20.555 44.999,27.93 44.999,17.5 35,17.5 35,27.929 27.625,20.555 20.555,27.625 27.928,35 17.5,35 17.5,45 27.929,45 20.555,52.374 27.625,59.445 35,52.072 34.999,62.499 45,62.5 44.999,52.07 52.374,59.445 59.445,52.374 52.071,45 "/>';
-		}
-		if (blockType == 'ostar') {
+		} else if (blockType == 'ostar') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="62.5,45 62.499,34.999 52.071,35 59.445,27.625 52.374,20.555 44.999,27.93 44.999,17.5 35,17.5 35,27.929 27.625,20.555 20.555,27.625 27.928,35 17.5,35 17.5,45 27.929,45 20.555,52.374 27.625,59.445 35,52.072 34.999,62.499 45,62.5 44.999,52.07 52.374,59.445 59.445,52.374 52.071,45 "/>';
-		}
-		if (blockType == 'plus') {
+		} else if (blockType == 'plus') {
 			SVGString += '<polygon class="shape" points="62.5,35 45,35 45,17.5 35,17.5 35,35 17.5,35 17.5,45 35,45 35,62.5 45,62.5 45,45 62.5,45 "/>';
-		}
-		if (blockType == 'oplus') {
+		} else if (blockType == 'oplus') {
 			//SVGString += oOutline;
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="62.5,35 45,35 45,17.5 35,17.5 35,35 17.5,35 17.5,45 35,45 35,62.5 45,62.5 45,45 62.5,45 "/>';
-		}
-		if (blockType == 'cross') {
+		} else if (blockType == 'cross') {
 			SVGString += '<polygon class="shape" points="59.445,52.374 47.071,40 59.445,27.625 52.374,20.555 40,32.929 27.625,20.555 20.555,27.625 32.929,40 20.555,52.374 27.625,59.445 40,47.071 52.374,59.445 "/>';
-		}
-		if (blockType == 'ocross') {
+		} else if (blockType == 'ocross') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="59.445,52.374 47.071,40 59.445,27.625 52.374,20.555 40,32.929 27.625,20.555 20.555,27.625 32.929,40 20.555,52.374 27.625,59.445 40,47.071 52.374,59.445 "/>';
-		}
-		if (blockType == 'arrow1') {
+		} else if (blockType == 'arrow1') {
 			SVGString += '<polygon class="shape" points="22.42,57.58 46.762,52.419 40,47.071 59.445,27.626 52.374,20.555 32.929,40 27.582,33.238 "/>';
-
-		}
-		if (blockType == 'arrow11') {
+		} else if (blockType == 'arrow11') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="22.42,57.58 46.762,52.419 40,47.071 59.445,27.626 52.374,20.555 32.929,40 27.582,33.238 "/>';
-		}
-		if (blockType == 'arrow2') {
+		} else if (blockType == 'arrow2') {
 			SVGString += '<polygon class="shape" points="40,64.861 53.563,44 45,45 45,17.5 35,17.5 35,45 26.438,44 "/>';
-		}
-		if (blockType == 'arrow22') {
+		} else if (blockType == 'arrow22') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="40,64.861 53.563,44 45,45 45,17.5 35,17.5 35,45 26.438,44 "/>';
-		}
-		if (blockType == 'arrow3') {
+		} else if (blockType == 'arrow3') {
 			SVGString += '<polygon class="shape" points="57.58,57.58 52.419,33.238 47.071,40 27.626,20.555 20.555,27.626 40,47.071 33.238,52.419 "/>';
-		}
-		if (blockType == 'arrow33') {
+		} else if (blockType == 'arrow33') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="57.58,57.58 52.419,33.238 47.071,40 27.626,20.555 20.555,27.626 40,47.071 33.238,52.419 "/>';
-		}
-		if (blockType == 'arrow4') {
+		} else if (blockType == 'arrow4') {
 			SVGString += '<polygon class="shape" points="15.139,40 36,53.563 35,45 62.5,45 62.5,35 35,35 36,26.438 "/>';
-		}
-		if (blockType == 'arrow44') {
+		} else if (blockType == 'arrow44') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="15.139,40 36,53.563 35,45 62.5,45 62.5,35 35,35 36,26.438 "/>';
-		}
-		if (blockType == 'arrow6') {
+		} else if (blockType == 'arrow6') {
 			SVGString += '<polygon class="shape" points="64.861,40 44,26.438 45,35 17.5,35 17.5,45 45,45 44,53.563 "/>';
-		}
-		if (blockType == 'arrow66') {
+		} else if (blockType == 'arrow66') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="64.861,40 44,26.438 45,35 17.5,35 17.5,45 45,45 44,53.563 "/>';
-		}
-		if (blockType == 'arrow7') {
+		} else if (blockType == 'arrow7') {
 			SVGString += '<polygon class="shape" points="22.42,22.42 27.582,46.762 32.929,40 52.374,59.445 59.445,52.374 40,32.929 46.762,27.582 "/>';
-		}
-		if (blockType == 'arrow77') {
+		} else if (blockType == 'arrow77') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="22.42,22.42 27.582,46.762 32.929,40 52.374,59.445 59.445,52.374 40,32.929 46.762,27.582 "/>';
-		}
-		if (blockType == 'arrow8') {
+		} else if (blockType == 'arrow8') {
 			SVGString += '<polygon class="shape" points="40,15.139 26.438,36 35,35 35,62.5 45,62.5 45,35 53.563,36 "/>';
-		}
-		if (blockType == 'arrow88') {
+		} else if (blockType == 'arrow88') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="40,15.139 26.438,36 35,35 35,62.5 45,62.5 45,35 53.563,36 "/>';
-		}
-		if (blockType == 'arrow9') {
+		} else if (blockType == 'arrow9') {
 			SVGString += '<polygon class="shape" points="57.58,22.42 33.238,27.581 40,32.929 20.555,52.374 27.626,59.445 47.071,40 52.419,46.762 "/>';
-		}
-		if (blockType == 'arrow99') {
+		} else if (blockType == 'arrow99') {
 			SVGString += oShape;
 			SVGString += '<polygon class="shape" points="57.58,22.42 33.238,27.581 40,32.929 20.555,52.374 27.626,59.445 47.071,40 52.419,46.762 "/>';
-		}
-		if (blockType == 'hbar') {
+		} else if (blockType == 'hbar') {
 			SVGString += '<rect class="shape" x="17.5" y="35" width="45" height="10"/>';
-		}
-		if (blockType == 'ohbar') {
+		} else if (blockType == 'ohbar') {
 			SVGString += oShape;
 			SVGString += '<rect class="shape" x="17.5" y="35" width="45" height="10"/>';
-		}
-		if (blockType == 'vbar') {
+		} else if (blockType == 'vbar') {
 			SVGString += '<rect class="shape" x="35" y="17.5" width="10" height="45"/>';
-		}
-		if (blockType == 'ovbar') {
+		} else if (blockType == 'ovbar') {
 			SVGString += oShape;
 			SVGString += '<rect class="shape" x="35" y="17.5" width="10" height="45"/>';
-		}
-		if (blockType == 'tlbr') {
+		} else if (blockType == 'tlbr') {
 			SVGString += '<rect class="shape" x="17.5" y="35" transform="matrix(-0.7071 -0.7071 0.7071 -0.7071 40 96.5684)" width="45" height="10"/>';
-		}
-		if (blockType == 'otlbr') {
+		} else if (blockType == 'otlbr') {
 			SVGString += oShape;
 			SVGString += '<rect class="shape" x="17.5" y="35" transform="matrix(-0.7071 -0.7071 0.7071 -0.7071 40 96.5684)" width="45" height="10"/>';
-		}
-		if (blockType == 'bltr') {
+		} else if (blockType == 'bltr') {
 			SVGString += '<rect class="shape" x="17.5" y="34.999" transform="matrix(0.7071 -0.7071 0.7071 0.7071 -16.5682 40.0007)" width="45" height="10"/>';
-		}
-		if (blockType == 'obltr') {
+		} else if (blockType == 'obltr') {
 			SVGString += oShape;
 			SVGString += '<rect class="shape" x="17.5" y="34.999" transform="matrix(0.7071 -0.7071 0.7071 0.7071 -16.5682 40.0007)" width="45" height="10"/>';
-		}
-		if (blockType == 'ice') {
+		} else if (blockType == 'ice') {
 			SVGString += '<rect fill="#B6E3FF" width="80" height="80"/>';
 			SVGString += '<polygon fill="#CFF1FF" points="80,38.375 0,29.375 0,17.125 80,24 "/>';
 			SVGString += '<polygon fill="#CFF1FF" points="80,65 0,49.375 0,37.125 80,50.5 "/>';
 			SVGString += '<polygon fill="#FFFFFF" stroke="#B6E3FF" points="25.536,43.786 28.788,54.874 39.875,58.125 28.788,61.377 25.536,72.464 22.285,61.377 11.197,58.125 22.285,54.874 "/>';
 			SVGString += '<polygon fill="#FFFFFF" stroke="#B6E3FF" points="53.339,11.322 56.591,22.41 67.678,25.661 56.591,28.913 53.339,40 50.088,28.913 39,25.661 50.088,22.41 "/>';
-		}
-		if (blockType == 'knight') {
+		} else if (blockType == 'knight') {
 			SVGString += '<path d="M24.457,70.447c0,0,0.238-11.977,6.288-17.872C43.651,40,41.666,37.022,41.666,37.022s-4.964-1.986-11.694,4.082 c-6.729,6.066-11.692,8.493-12.134,3.86c0,0-6.288,0.221-5.957-3.86c0.331-4.082,13.127-19.084,14.893-24.159 c1.765-5.074,1.985-7.391,1.985-7.391s5.185,2.427,6.839,5.074c0,0,3.751-5.185,6.73-5.074l1.103,4.412 c0,0,12.024,1.765,16.988,14.672c4.964,12.907,4.964,41.809,4.964,41.809"/>';
 			SVGString += '<path fill="#AD0000" d="M31.347,22.019c0,0-6.067,3.162-6.067,7.281c0,0.184,0,0.441,0,0.441s4.964-1.765,5.516-4.743"/>';
-		}
-		if (blockType == 'mine') {
+		} else if (blockType == 'mine') {
 			SVGString += `
 				<g class="mineMetal">
 					<circle cx="40" cy="40" r="4.2"/>
@@ -382,8 +358,7 @@ function getSVG8by8(blockType, where) {
 				<circle class="mineLights" cx="30" cy="50" r="2"/>
 				<circle class="mineLights" cx="50" cy="50" r="2"/>
 				`;
-		}
-		if (blockType == 'reclaim') {
+		} else if (blockType == 'reclaim') {
 			SVGString += `<polygon fill="#E3FFE1" points="13.2,21.3 15.1,27.8 21.5,29.7 15.1,31.6 13.2,38 11.3,31.6 4.8,29.7 11.3,27.8 	"/>
 			<polygon fill="#E3FFE1" points="40.8,60 42.7,66.4 49.2,68.3 42.7,70.2 40.8,76.7 38.9,70.2 32.5,68.3 38.9,66.4 	"/>
 			<polygon fill="#E3FFE1" points="64.5,37.2 66.3,43.6 72.8,45.5 66.3,47.4 64.5,53.8 62.6,47.4 56.1,45.5 62.6,43.6 	"/>
@@ -414,13 +389,11 @@ function getSVG8by8(blockType, where) {
 
 function updateBlock (x, y, blockType, possessionDisplayName, moveNum, origin, color, duration, history, originColor, possession, possessionColorSpread) {
     
-	
-	
 	var id = '#x' + x + 'y' + y;
 	if (blockType == "blank") {
 		$(id).empty().addClass('empty').css('background-color', '');
 	} else if (blockType == "blockade") {
-		$(id).empty().addClass('blockade').removeClass('empty').css('background-color', '#000000');
+		$(id).empty().removeClass('empty').css('background-color', '#000000');
 		if (duration !== false) {
 			if (typeof moveNum !== 'undefined' && moveNum > 0) {
 				$(id).append('<span class="duration">' + (duration) + '</span>');
@@ -440,8 +413,17 @@ function updateBlock (x, y, blockType, possessionDisplayName, moveNum, origin, c
 			$(id).addClass('ice');
 		}
 		
+		/*
 		if (typeof color != 'undefined') {
-			if (color == emptyColor && blockType !== 'mine') { // not sure what's going on here with if color == emptyColor... kind of weirdness.
+			if (color == emptyColor && blockType !== 'mine') {
+				$(id).css('background-color', ColorLuminance(color, 0.1));
+			} else {
+				$(id).css('background-color', '');
+			}
+		}*/
+		
+		if (typeof possession != 'undefined') {
+			if (possession.length == 0 && blockType !== 'mine') {
 				$(id).css('background-color', ColorLuminance(color, 0.1));
 			} else {
 				$(id).css('background-color', '');
@@ -459,11 +441,89 @@ function updateBlock (x, y, blockType, possessionDisplayName, moveNum, origin, c
 	$(id).data("history", history); 
 	$(id).data("possessionColorSpread", possessionColorSpread);
 	
+	
+	// NEW COLOR ENGINE WIP
+	
+	
+	/*
+	if (typeof possession !== 'undefined') {
+		// if possession is undefined then it's updating the block 'temporarily' outside of renderboard...
+		// so it doesn't need to repaint the color onto the block. 
+		
+		// possessionColor is used for blockHoverData() - to render the color of the name of who has possession.
+		// this shouldn't store color anymore but should store the "no / p1 / p2 / mixed" state.
+		
+		// perhaps I should get that state value right now, from the value of possession.
+		// I still need a method for determining which ID is P1 or P2 though.
+		// it's easy to tell if it's none or mixed based on the number of entities in the possession array.
+		// but if there is a single value, I need a way to check who is on which side.
+		
+		// could just store that in a global.
+		// if i'm storing colors globally I could maybe just have some kind of client-side game object
+		// that contains the data I need for color rendering, and who is which player...
+		
+		// what does the client need to know?
+		// am I gonna have games created by a non-player?
+		// that is a potential thing to add...
+		
+		// if updateBlock() doesn't recieve hex colors anymore
+		// it uses the global object colors to store socket ID of each player corresponding to P1 or P2
+		// along with the global/local colors.
+		
+		
+		
+		$(id).data("possessionColor", color); 
+		
+		// remove any prior color class
+		$(id).removeClass('nocolor p1color p2color mixedcolor')
+		
+		if (typeof possessionColorSpread !== 'undefined') {
+			if (possessionColorSpread.length > 0) {
+				for (var i = 0; i < possessionColorSpread.length; i++) {
+					
+					var colorClass = 'color-' + possessionColorSpread[i].color.substr(1);
+					var tempColor = possessionColorSpread[i].color;
+					$(id).addClass('color-d5ccbd');
+					if (blockType !== 'blank') {
+						$(id).css('background-color', ColorLuminance(emptyColor, 0.1));
+					}
+					setTimeout(function(){ 
+						// add the new one
+						$(id).removeClass('color-d5ccbd');
+						var mixed = mix(emptyColor, tempColor, 60);
+						$(id).css('background-color', mixed); 
+						$(id).addClass(colorClass);
+						setTimeout(function() {
+							$(id).css('background-color', '');
+						}, 100);
+					}, ((possessionColorSpread[i].layer+1) * 100) + 100);
+				}
+			} else {
+				$(id).addClass('color-' + color.substr(1));
+			}
+		} else {
+			$(id).addClass('color-' + color.substr(1));
+		}
+		if ((moveNum == global_moveCount) && (global_moveCount > 0) && (showWinState == false)) {
+			if (origin == 'collision' || origin == 'collision fade') {
+				$(id).addClass("prior-collision");
+			} else {
+				$(id).addClass("prior-" + originColor.substr(1));
+			}
+		}
+	}
+	*/
+	
+	
+	
+	
+	
 	if (typeof color !== 'undefined') {
 		
 		$(id).data("possessionColor", color); 
 		// remove any prior color class
 		
+		$(id).removeClass('prior-collision');
 		$(id).removeClass(function (index, css) {
 			return (css.match (/\bcolor-\S+/g) || []).join(' ');
 		});
@@ -503,7 +563,10 @@ function updateBlock (x, y, blockType, possessionDisplayName, moveNum, origin, c
 		
 		if ((moveNum == global_moveCount) && (global_moveCount > 0) && (showWinState == false)) {
 			if (origin == 'collision' || origin == 'collision fade') {
-				$(id).addClass("prior-" + collisionColor.substr(1));
+				//$(id).addClass("prior-" + collisionColor.substr(1));
+				$(id).addClass("prior-collision");
+				
+				
 				/*
 				$(id).addClass("newMove");
 				setTimeout(function(){ 
@@ -725,7 +788,8 @@ function joinGame(gameID, moveCount, timeLeft, players, rows, cols, board, gameT
 				y = xy[1];
 				$(".highlighted").removeClass('highlighted');
 				$(this).addClass('highlighted');
-				$('.prior-' + collisionColor.substr(1)).removeClass('prior-' + collisionColor.substr(1));
+				//$('.prior-' + collisionColor.substr(1)).removeClass('prior-' + collisionColor.substr(1));
+				$('.prior-collision').removeClass('prior-collision');
 				
 				if ($(this).hasClass('prior-' + players[you].color.substr(1))) {
 				// if this block is already activated by you, deactivate it.
@@ -1239,6 +1303,56 @@ function mix (color_1, color_2, weight) {
 	}
 	return color;
 };
+function updateStyles(p1hex, p2hex) {
+	// this will be called when a player joins a game or when you join a game,
+	// or when you click a button to swap to default/custom colors,
+	var mixed = mix(p1hex, p2hex, 50);
+	updateStyle('p1color', p1hex);
+	updateStyle('p2color', p2hex);
+	updateStyle('mixedcolor', mixed);
+}
+
+function updateStyle(styleID, color) {
+	// empty what was already there
+	$("#" + styleID).empty();
+	
+	// BLOCK
+	var rule = '.' + styleID + ' { background-color: ' + color + '; } ';
+	rule += '.' + styleID + ' svg .border { fill: '+ ColorLuminance(color, -0.65) +' }';
+	rule += '.' + styleID + '.empty svg .border { opacity: 0; }';
+	rule += '.' + styleID + ' svg .border2 { stroke: '+ ColorLuminance(color, 0.125) +' }';
+	
+	if (color !== emptyColor) {
+		// SVG OUTLINE
+		rule += '.' + styleID + ' svg .outline { fill: '+ ColorLuminance(color, 0.125) +'; }';
+
+		// SVG BASE JEWEL
+		rule += '.' + styleID + ' svg .jewel { fill: '+ color +'; animation: jewel-' + color.substr(1) +' 1s infinite alternate ease-in-out; }';
+		rule += '@keyframes jewel-'+ color.substr(1) +' { 0% { opacity: 0.2; } 100% { opacity: 1; } }';
+
+	}
+	
+	// EMPTY
+	var mixed = mix(color, emptyColor, 55); // old was 35
+	var mixed2 = ColorLuminance(color, -0.09);
+	rule += '.' + styleID + '.empty { background-color: ' + mixed + '; box-shadow: inset 0 0 0 1px '+ mixed2 +';  }';
+
+	// HOVER
+	rule += '.' + styleID + ':hover:not(.nohover):not(.disabled), .' + styleID + '.highlighted { background-color: ' + ColorLuminance(mixed, 0.125) +'; cursor:pointer; }';
+	
+	// PRIOR
+	rule += '.prior-' + color.substr(1) + '::before { animation: origin-' + color.substr(1) + ' 0.25s infinite alternate; content:""; display: block; height: 100%; width: 100%; position: absolute; left: 0; top: 0; background-color: '+ hex2rgba(mix(color, '#ffffff', 50), 50) +'; box-shadow: inset 0 0 0 1px '+ ColorLuminance(color,-0.3) +', inset 0 0 0 3px '+ color +'; }';
+	priorColorList.push('prior-' + color.substr(1)); // global var holds all prior classes.
+	
+	// ANIMATION
+	rule += '@keyframes origin-' + color.substr(1) +' { 0% { opacity: 0.2; } 40% { opacity: 0.25; } 60% { opacity: 0.95; } 100% { opacity: 1 } }';
+	
+	// append
+	$("#" + styleID).append(rule);
+}
+
+
+
 function addNewStyle(color) {
 	
 	// I will sometimes call this not just when setting up the page
@@ -2475,7 +2589,7 @@ $( window ).on("load", function() {
 			</div>
 		</div> `);
 	sidebarsResize();
-	addNewStyle(collisionColor); // for collisions
+	updateStyle('nocolor', "#d5ccbd");
 	$( window ).resize(function() {
 		resizeFunction();
 	});
